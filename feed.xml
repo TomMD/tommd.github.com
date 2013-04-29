@@ -1,15 +1,20 @@
 <rss version="2.0">
   <channel>
-    <title>A blog</title>
+    <title>The Type-Safe Jabberwolk</title>
     <link>http://localhost:8000</link>
-    <description>A blog</description>
+    <description>The Type-Safe Jabberwolk</description>
     <language>en-us</language>
-    <managingEditor>your@email.here</managingEditor>
-    <webMaster>your@email.here</webMaster>
-    <item><title>A first post p = 0</title>
-<link>http://localhost:8000/posts/first-post.html</link>
-<pubDate>Thu,  1 Jan 1970 00:00:00 UTC</pubDate>
-<guid>http://localhost:8000/posts/first-post.html</guid>
+    <managingEditor>thomas.dubuisson@gmail.com</managingEditor>
+    <webMaster>thomas.dubuisson@gmail.com</webMaster>
+    <item><title>Easy, threadsafe, communications security for Haskell</title>
+<link>http://localhost:8000/posts/CommSecIntro.html</link>
+<pubDate>Mon, 29 Apr 2013 05:54:52 UTC</pubDate>
+<guid>http://localhost:8000/posts/CommSecIntro.html</guid>
+</item>
+<item><title>License Plate Recognition With CV</title>
+<link>http://localhost:8000/posts/LprWithCV.html</link>
+<pubDate>Mon, 29 Apr 2013 05:51:53 UTC</pubDate>
+<guid>http://localhost:8000/posts/LprWithCV.html</guid>
 </item>
 
   </channel>

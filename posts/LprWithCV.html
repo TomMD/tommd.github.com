@@ -1,0 +1,117 @@
+<html>
+  <head>
+    <title>License Plate Recognition With CV - The Type-Safe Jabberwolk</title>
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssreset/reset-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssbase/base-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssfonts/fonts-min.css">
+    <link rel="stylesheet" type="text/css" href="/stylesheets/stylesheet.css"/>
+    <link rel="alternate" type="application/rss+xml" href="http://localhost:8000/feed.xml"/>
+    <script type="text/x-mathjax-config">
+MathJax.Hub.Config(
+  {"HTML-CSS": { preferredFont: "TeX", availableFonts: ["STIX","TeX"] },
+   tex2jax: {
+     element: null,
+     preview: "none",
+     skipTags: ["script","noscript","style","textarea","pre","code"],
+     inlineMath: [
+       ['$', '$'],
+       ["\\(", "\\)"],
+     ],
+     displayMath: [
+       ['$$', '$$'],
+       ["\\[", "\\]"],
+     ],
+     processEscapes: true,
+     ignoreClass: "tex2jax_ignore|dno"
+   },
+   TeX: {
+     extensions: ["AMSmath.js","AMSsymbols.js","cancel.js"],
+     equationNumbers: { autoNumber: "AMS" },
+     noUndefined: { attributes: {
+                      mathcolor: "red",
+                      mathbackground: "#FFEEEE",
+                      mathsize: "90%" }
+                  }
+   },
+   messageStyle: "none"
+});
+</script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+    
+  </head>
+  <body>
+    <div id="page">
+      <div id="header">
+        <a id="listing" href="/posts/">all posts</a>
+        <a href="/">The Type-Safe Jabberwolk</a>
+      </div>
+      <div id="prev-next-links">
+      <a class="prev-link-subdued">older &raquo;</a>
+  
+      <a class="next-link" href="/posts/CommSecIntro.html">&laquo; newer</a>
+  
+</div>
+
+<div style="display: none;">
+\(
+
+\)
+</div>
+
+<div id="post">
+  <h1>License Plate Recognition With CV</h1>
+  <span class="post-created">Posted 28 April 2013 by Thomas M. DuBuisson</span>
+<h1 id="introduction">Introduction</h1>
+<p>Over the past week I have expored the topic of automatic license plate recognition. While it is basically a solved problem, the area of image processing has always intigued me and the plethora of literature made LPR seem a good place to start. Take note: I don't know anything about image recognition! What is an integral image? What is a white hat transformation? Until recently I had no idea.</p>
+<p>OpenCV is clearly the library of choice for image recognition. While it is battle tested and has bindings in many major languages, the two available Haskell bindings (Haskell is my language of choice) are under-resourced and incomplete. By selecting Haskell I knowingly set myself up to do more basic library work and potentially make less progress on the task at hand. Ultimately, I selected the <a href="http://hackage.haskell.org/package/CV">CV</a> library, grabbed a few papers, and got to work.</p>
+<!--
+# Working with CV
+
+CV has useful bindings, but is not complete.  I'm very greatful to have Ville's
+hard work available, but potential users should know there is no division
+between internal and high level APIs.  Many CV operations have defaulted
+arguments that aren't exposed in the Haskell API and some are only exposed
+through a composite operation. This is probably a result of a development
+driven by a very particular use - while c2hs is used its use could be more
+effective.
+-->
+
+<h1 id="license-plate-recognition">License Plate Recognition</h1>
+<p>My pipeline is informed by the papers I perused. Plate Localization uses an otsu threshold, filter blob with high areas, white hat, filter blobs of area outside of a range, dilation, and shape filtering (keep rectangular blobs). Potential plates are then extracted and cleaned by filtering based on the area, width/height relative to near by objects, and number of blobs. Finally, I segment all the blobs (sorted left to right) sending each one individually to GNU optical character recognizer.</p>
+<h2 id="results">Results</h2>
+<p>An example of a successful application starts with a typical image of a car in traffic:</p>
+<div class="figure">
+<img src="../static-images/LPR/success/normal.jpg" alt="Car in traffic" /><p class="caption">Car in traffic</p>
+</div>
+<p>We then see how thresholding helps (while assuming the plate is dark numbers on a light background):</p>
+<div class="figure">
+<img src="../static-images/LPR/success/threshold.jpg" alt="Thresholded car" /><p class="caption">Thresholded car</p>
+</div>
+<p>The white top-hat reduces many of the objects to skeletons, breaking some apart so we can consider them as separate blobs. This is important for some images that, when thresholded, connect a letter or two from the plate to the body of the car.</p>
+<div class="figure">
+<img src="../static-images/LPR/success/wth.jpg" alt="White top-hat" /><p class="caption">White top-hat</p>
+</div>
+<p>The size-filter gives us:</p>
+<div class="figure">
+<img src="../static-images/LPR/success/size-filter.jpg" alt="size-filtered" /><p class="caption">size-filtered</p>
+</div>
+<p>Now dilation allows us to connect the individual letters into a single blob. The areas that show up as white in the dilated image are checked to see if they contain between 3 and 30 separate blobs (in the thresholded image), if so then I consider this portion of the image as a potential plate.</p>
+<div class="figure">
+<img src="../static-images/LPR/success/dilate.jpg" alt="dilated" /><p class="caption">dilated</p>
+</div>
+<p>With just a little more processing, such as comparing the sizes of the blobs to make sure they are approximately the same height, we end up with two blobs. After cleaning, here they are:</p>
+<p><img src="../static-images/LPR/success/cleanblob.png" alt="dilated" /> <img src="../static-images/LPR/success/cleanblob-wrong.png" alt="dilated" /></p>
+<p>This license plate is properly segmented and GOCR tells me the plate is &quot;F669'&quot;, or &quot;fY_ 68_ J&quot; if given the letters all at once.</p>
+<h2 id="issues">Issues</h2>
+<ul>
+<li>Of the portion of the week I spent on LPR, the time was divided between reading, learning and testing primitives, and modifying the CV library.</li>
+<li>Unsurprisingly, the exact values I use for filtering are highly tuned to the images I was testing with at the time and the distances I assumed from the target. Using my high-resolution (non-phone) camera, the current software extracts the smaller texts such as the tag year and car model while tossing the plate number entirely. Some basic resizing would fix this issue.</li>
+<li>While it out performs the other OCR systems I found, GOCR doesn't perform as well as I would like for this task. I noticed some papers perform OpenCV template matching in place of OCR, which I intend to try in the future.</li>
+</ul>
+</div>
+      <div id="footer">
+        Copyright &copy; 2013 Thomas M. DuBuisson
+      </div>
+    </div>
+  </body>
+</html>
