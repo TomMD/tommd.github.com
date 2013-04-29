@@ -1,0 +1,16 @@
+<rss version="2.0">
+  <channel>
+    <title>A blog</title>
+    <link>http://localhost:8000</link>
+    <description>A blog</description>
+    <language>en-us</language>
+    <managingEditor>your@email.here</managingEditor>
+    <webMaster>your@email.here</webMaster>
+    <item><title>A first post p = 0</title>
+<link>http://localhost:8000/posts/first-post.html</link>
+<pubDate>Thu,  1 Jan 1970 00:00:00 UTC</pubDate>
+<guid>http://localhost:8000/posts/first-post.html</guid>
+</item>
+
+  </channel>
+</rss>
