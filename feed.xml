@@ -1,20 +1,20 @@
 <rss version="2.0">
   <channel>
     <title>The Type-Safe Jabberwolk</title>
-    <link>http://localhost:8000</link>
+    <link>http://tommd.github.io</link>
     <description>The Type-Safe Jabberwolk</description>
     <language>en-us</language>
     <managingEditor>thomas.dubuisson@gmail.com</managingEditor>
     <webMaster>thomas.dubuisson@gmail.com</webMaster>
     <item><title>Easy, threadsafe, communications security for Haskell</title>
-<link>http://localhost:8000/posts/CommSecIntro.html</link>
+<link>http://tommd.github.io/posts/CommSecIntro.html</link>
 <pubDate>Mon, 29 Apr 2013 05:54:52 UTC</pubDate>
-<guid>http://localhost:8000/posts/CommSecIntro.html</guid>
+<guid>http://tommd.github.io/posts/CommSecIntro.html</guid>
 </item>
 <item><title>License Plate Recognition With CV</title>
-<link>http://localhost:8000/posts/LprWithCV.html</link>
+<link>http://tommd.github.io/posts/LprWithCV.html</link>
 <pubDate>Mon, 29 Apr 2013 05:51:53 UTC</pubDate>
-<guid>http://localhost:8000/posts/LprWithCV.html</guid>
+<guid>http://tommd.github.io/posts/LprWithCV.html</guid>
 </item>
 
   </channel>
