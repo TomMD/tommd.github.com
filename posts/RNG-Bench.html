@@ -1,0 +1,118 @@
+<html>
+  <head>
+    <title>Things to do in Portland when you're sick: Benchmarking Cryptographically Secure RNGs - The Type-Safe Jabberwolk</title>
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssreset/reset-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssbase/base-min.css">
+    <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssfonts/fonts-min.css">
+    <link rel="stylesheet" type="text/css" href="/stylesheets/stylesheet.css"/>
+    <link rel="alternate" type="application/rss+xml" href="http://tommd.github.io/feed.xml"/>
+    <script type="text/x-mathjax-config">
+MathJax.Hub.Config(
+  {"HTML-CSS": { preferredFont: "TeX", availableFonts: ["STIX","TeX"] },
+   tex2jax: {
+     element: null,
+     preview: "none",
+     skipTags: ["script","noscript","style","textarea","pre","code"],
+     inlineMath: [
+       ['$', '$'],
+       ["\\(", "\\)"],
+     ],
+     displayMath: [
+       ['$$', '$$'],
+       ["\\[", "\\]"],
+     ],
+     processEscapes: true,
+     ignoreClass: "tex2jax_ignore|dno"
+   },
+   TeX: {
+     extensions: ["AMSmath.js","AMSsymbols.js","cancel.js"],
+     equationNumbers: { autoNumber: "AMS" },
+     noUndefined: { attributes: {
+                      mathcolor: "red",
+                      mathbackground: "#FFEEEE",
+                      mathsize: "90%" }
+                  }
+   },
+   messageStyle: "none"
+});
+</script>
+    <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+    
+  </head>
+  <body>
+    <div id="page">
+      <div id="header">
+        <a id="listing" href="/posts/">all posts</a>
+        <a href="/">The Type-Safe Jabberwolk</a>
+      </div>
+      <div id="prev-next-links">
+      <a class="prev-link" href="/posts/CommSecIntro.html">older &raquo;</a>
+  
+      <a class="next-link-subdued">&laquo; newer</a>
+  
+</div>
+
+<div style="display: none;">
+\(
+
+\)
+</div>
+
+<div id="post">
+  <h1>Things to do in Portland when you're sick: Benchmarking Cryptographically Secure RNGs</h1>
+  <span class="post-created">Posted 13 May 2013 by Thomas M. DuBuisson</span>
+<p>Random number generator isn't something that non-computer scientists or cryptographers think about very much. The fact is, it's a critical task for almost any secure system - keys, nonces, and passwords all need some entropy and that has to come from somehwere.</p>
+<p>It is actually hard to design generators that give random or seemingly random values. It's harder to do so in a cryptographically secure manner - meaning that there is no practical way to predict part of the output even when given all previous or future values. It's even harder to design a generator that has high performance. If you find the task easy then you can probably make a good living writing research papers on the topic.</p>
+<p>To complicate matters further, the dimensions for comparison are more than security and performance:</p>
+<ul>
+<li><p>Determinism: Most RNGs are pseudo-random - the output is based entirely on their initial seed. This is a useful feature as it allows separate entities to obtain the same random stream without significant communication.</p></li>
+<li><p>Backtracking Resistance: compromise of a future generator does not yield the adversary any ability to compute previous random values.</p></li>
+<li><p>Prediction Resistance: even if the adversary have obtained one state of the RNG they might not be able to predict the future output because the generator can continually incorporate entropy from outside sources.</p></li>
+</ul>
+<p>Fortunately, the world is large and, even in a language that fancies itself a niche, there are options. There are at least four packages on Hackage that are worth trying and the generators available in these packages fit into three catagories:</p>
+<ul>
+<li>Block-Ciphers in counter or quasi-counter mode
+<ul>
+<li><a href="http://hackage.haskell.org/package/intel-aes">intel-aes</a></li>
+<li><a href="http://hackage.haskell.org/package/cprng-aes">cprng-aes</a></li>
+</ul></li>
+<li>NIST Standards Based
+<ul>
+<li><a href="http://hackage.haskell.org/package/DRBG">DRBG</a></li>
+</ul></li>
+<li>External Entropy (operating system backed, RDRAND when available)
+<ul>
+<li><a href="http://hackage.haskell.org/package/crypto-api">crypto-api</a> (using a pre-release version of <a href="https://github.com/TomMD/entropy">entropy</a>)</li>
+</ul></li>
+</ul>
+<h2 id="intel-aes">Intel-AES</h2>
+<p>Based on Intel's AES-NI example code, this package is a fast AES in counter mode. There is no backtracking resistance. It also doesn't currently build due to recent changes to crypto-api, but feel free to try my fixed up <a href="https://github.com/TomMD/intel-aes">git repository</a>.</p>
+<h2 id="cprng-aes">CPRNG-AES</h2>
+<p>This is also an AES without backtracking resistance. Oddly, this is not AES in counter mode, it XORs a counter with the previously returned random bytes to obtain the IV - the reason for this design choice is unknown. CPRNG-AES is more popular than intel-aes, probably due to its cleaner build system.</p>
+<h2 id="deterministic-random-bit-generator-drbg">Deterministic Random Bit Generator (DRBG)</h2>
+<p>DRBG is a collection of generators and modifiers. These generators are all naive English-to-Haskell translations of NIST SP 800-90. Included are Hash-based, HMAC-based, and a counter based generators. These generators are all backtracking resistant and allow additional input to be provided for prediction resistance. Modifiers take as input one or more generators and produce a new generator; the modifiers include automatically reseeding one generator with another, buffering generators, and XORing the output of two generators. The modifiers are all custom solutions, but the underlying generators successfully complete the NIST Known Answer Tests.</p>
+<h2 id="crypto-api-and-entropy">Crypto-API and Entropy</h2>
+<p>Crypto-api provides access to a &quot;system generator&quot; which actually uses either a system source like /dev/urandom or Intel's RDRAND instruction. Lumping this generator in with the above is questionable at best - the above generators are pseudo-random and result in the same output when given the same seed. The <code>SystemRandom</code> generator is IO-based and anything it generates is not reproducable - it's more like reading lazily from an infinitely long file.</p>
+<h1 id="benchmarks">Benchmarks</h1>
+<p>Since all of these generators can be incorporated into a project with near-identical ease, and most users aren't concerned with adherence to standards or other quasi-security arguments, the main difference remaining is performance. I've benchmarked six generators over a range of data-request sizes. The results will hopefully educate potential users about their choices as well as motivate continued development.</p>
+<p>I'll present the mean values in the graph. This is slightly misleading as some generators, such as the buffered generators, have very odd densities, so take your grain of salt.</p>
+<p>(all benchmarks are on an 3.1GhZ laptop with AES-NI and RDRAND)</p>
+<p><img src="/generated-images/tikz-1e956f93bad90b87e96322da923c4cc9a304b492.png" class=""></p>
+<p>Looking these numbers I have the following observations:</p>
+<ul>
+<li><p>It appears CPRNG performs buffering - news to me.</p></li>
+<li><p>Buffering isn't properly shown-off by the benchmark - making CPRNG and CtrDRBG-Buffered look bad. Acquiring one byte one-hundred times still reflects the initial measure of generating our potentially multi-megabyte buffer. In real use cases I expect buffering, to be a nice boon.</p></li>
+<li><p>Intel-AES is amazingly fast. I knew the AES routines relied on by CtrDRBG and CPRNG were sub-par but not to this extent.</p></li>
+<li><p>RDRAND, via SystemRandom, is far and away the best performing generator (assuming your system supports the instruction).</p></li>
+</ul>
+<p>I re-ran the benchmarks, stepping the buffering generators one byte first. This means they get the advantage of precomputing an arbitrary number of bytes up front and just taking bytes off a bytestring to serve requests. The purpuse here is just to confirm we are talking about mere nanoseconds unless the generators need to compute more random data for the buffer.</p>
+<p><img src="/generated-images/tikz-fe285d904737f33eff98b7bb2058e57f0cf8198f.png" class=""></p>
+<h1 id="conclusion">Conclusion</h1>
+<p>I have high respect for all of these packages. They've all shown reasonable performance and include simple APIs (via the <code>RandomAPI</code> and <code>CryptoRandomGen</code> classes). Unless you need top-notch performance (in which case, use <code>SystemRandom</code> or <code>Intel-AES</code>), you'll probably be well served by selecting a package based on features, portability, and preferred API.</p>
+</div>
+      <div id="footer">
+        Copyright &copy; 2013 Thomas M. DuBuisson
+      </div>
+    </div>
+  </body>
+</html>
