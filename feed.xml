@@ -6,7 +6,12 @@
     <language>en-us</language>
     <managingEditor>thomas.dubuisson@gmail.com</managingEditor>
     <webMaster>thomas.dubuisson@gmail.com</webMaster>
-    <item><title>Easy, threadsafe, communications security for Haskell</title>
+    <item><title>Things to do in Portland when you're sick: Benchmarking Cryptographically Secure RNGs</title>
+<link>http://tommd.github.io/posts/RNG-Bench.html</link>
+<pubDate>Wed, 15 May 2013 04:48:54 UTC</pubDate>
+<guid>http://tommd.github.io/posts/RNG-Bench.html</guid>
+</item>
+<item><title>Easy, threadsafe, communications security for Haskell</title>
 <link>http://tommd.github.io/posts/CommSecIntro.html</link>
 <pubDate>Mon, 29 Apr 2013 05:54:52 UTC</pubDate>
 <guid>http://tommd.github.io/posts/CommSecIntro.html</guid>

@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>Easy, threadsafe, communications security for Haskell - The Type-Safe Jabberwolk</title>
+    <title>Things to do in Portland when you're sick: Benchmarking Cryptographically Secure RNGs - The Type-Safe Jabberwolk</title>
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssreset/reset-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssbase/base-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssfonts/fonts-min.css">
@@ -46,7 +46,7 @@ MathJax.Hub.Config(
         <a href="/">The Type-Safe Jabberwolk</a>
       </div>
       <div id="prev-next-links">
-      <a class="prev-link" href="/posts/LprWithCV.html">older &raquo;</a>
+      <a class="prev-link" href="/posts/CommSecIntro.html">older &raquo;</a>
   
       <a class="next-link-subdued">&laquo; newer</a>
   
@@ -59,96 +59,56 @@ MathJax.Hub.Config(
 </div>
 
 <div id="post">
-  <h1>Easy, threadsafe, communications security for Haskell</h1>
-  <span class="post-created">Posted 28 April 2013 by Thomas M. DuBuisson</span>
-<h1 id="introduction">Introduction</h1>
-<p>Obtaining an encrypted and authenticated communication channel in Haskell has, sadly, proven to be more complex than necessary. Over the past few years I've observed people using <a href="http://hackage.haskell.org/package/gnutls">c</a><a href="http://hackage.haskell.org/package/crypto-random-api">r</a><a href="http://hackage.haskell.org/package/HsOpenSSL">y</a><a href="http://hackage.haskell.org/package/DRBG">p</a><a href="http://hackage.haskell.org/package/cprng-aes">t</a><a href="http://hackage.haskell.org/package/RSA">og</a><a href="http://hackage.haskell.org/package/crypto-api">ra</a><a href="http://hackage.haskell.org/package/cryptohash">ph</a><a href="http://hackage.haskell.org/package/clientsession-0.9">i</a><a href="http://hackage.haskell.org/package/cryptocipher">c</a> primitives to roll their own solution and some people have made custom <a href="http://hackage.haskell.org/package/clientsession-0.9">higher</a> <a href="http://hackage.haskell.org/package/secure-sockets">level</a> libraries that often bring in additional C-library dependencies, restrictions such as thread safety, or even both. Another solution might be to glue together two of the <a href="http://hackage.haskell.org/package/tls">m</a><a href="http://hackage.haskell.org/package/connection">a</a><a href="http://hackage.haskell.org/package/network-conduit-tls">n</a><a href="http://hackage.haskell.org/package/openssl-streams">y</a> client and server TLS libraries, but I haven't seen any one library that supports both client and server; there's also a lack of information about interoperability, performance, and ease of use when combining two libraries.</p>
-<p>For these reasons I have created the <a href="http://hackage.haskell.org/package/commsec">commsec</a> and <a href="http://hackage.haskell.org/package/commsec-keyexchange">commsec-keyexchange</a> packages that allow for authenticated, integrity and confidentiallity protected, communications.</p>
-<h1 id="guts-of-the-library">Guts of the Library</h1>
-<h2 id="commsec">CommSec</h2>
-<p>The CommSec library sends and receives information in datagrams much like how IPSec ESP works. Each plaintext sending is transmitted as <span class="math">\([ LEN | IV | CT | TAG ]\)</span> where LEN is a 4 byte length encoding of the message size (not including itself), IV is the 8 byte counter, CT is the AES GCM encryption of the plaintext under said counter, and TAG is the GCM authentication tag.</p>
-<h2 id="commsec-key-exchange">CommSec Key Exchange</h2>
-<p>The key exchange is based on the RSA-authenticated station to station protocol. This is just an authenticated DH scheme: each side generates <span class="math">\(x (\bmod p)\)</span> and <span class="math">\(y(\bmod p)\)</span>, where <span class="math">\(p\)</span> is a public large prime. They compute and share <span class="math">\(a^x\)</span> and <span class="math">\(a^y\)</span>, where <span class="math">\(a\)</span> is a generator. We then have shared secret <span class="math">\(a^{xy}\)</span> by computing <span class="math">\((a^x)^y\)</span> or <span class="math">\((a^y)^x\)</span>. The result is then verified using an RSA signature, transferring <span class="math">\(\text{AES-CTR}(RSA(a^x, a^y))\)</span> where the AES key is derived from the newly shared secret and each party uses their own private key for signing.</p>
-<h1 id="use">Use</h1>
-<p>You first need to generate RSA keys and share the public key between your communicating systems:</p>
-<pre id="snip1" class="sh"><code>    $ ssh-keygen
-    ...enter a path...</code></pre>
-<p>After that you can using commsec-keyexchange to perform an authenticated key exchange and send/recv data.</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell">    <span class="kw">import</span> Crypto.PubKey.OpenSsh
-    <span class="kw">import</span> <span class="kw">qualified</span> Data.ByteString <span class="kw">as</span> B
-    <span class="kw">import</span> Network.CommSec.KeyExchange
-    
-    main <span class="fu">=</span> <span class="kw">do</span>
-        <span class="co">-- Step 1: (not shown) get file paths, host, and port somehow.</span>
-        <span class="co">-- Step 2: Read in the keys</span>
-        <span class="dt">OpenSshPrivateKeyRsa</span> priv  <span class="ot">&lt;-</span> (<span class="fu">either</span> <span class="fu">error</span> <span class="fu">id</span> <span class="fu">.</span> decodePrivate) <span class="ot">`fmap`</span>
-                                      B.readFile myPrivateKeyFile
-        <span class="dt">OpenSshPublicKeyRsa</span> them _ <span class="ot">&lt;-</span> (<span class="fu">either</span> <span class="fu">error</span> <span class="fu">id</span> <span class="fu">.</span> decodePublic)  <span class="ot">`fmap`</span>
-                                      B.readFile theirPublicKeyFile</code></pre>
-<p>The first thing we do is obtain the RSA keys - our private key and their public key.</p>
-<pre class="sourceCode haskell" id="step3"><code class="sourceCode haskell">        <span class="co">-- Step 3: Listen for and accept a connection (alternatively: connect to a listener).</span>
-        ctx <span class="ot">&lt;-</span> <span class="kw">if</span> doAccept
-                <span class="kw">then</span> accept host port them priv
-                <span class="kw">else</span> connect host port them priv</code></pre>
-<p>After that we can perform a key exchange, which allows establishes a socket and shared key.</p>
-<pre class="sourceCode haskell" id="step4"><code class="sourceCode haskell">        <span class="co">-- Step 4: Use the communication contexts along with</span>
-        <span class="co">-- the send and recv primitives to communicate.</span>
-        send ctx <span class="st">&quot;Hello!&quot;</span>
-        recv ctx <span class="fu">&gt;&gt;=</span> <span class="fu">print</span></code></pre>
-<h1 id="performance-comparison">Performance Comparison</h1>
-<p>I benchmarked commsec to compare with the package I am replacing, secure-sockets:</p>
-<table>
-  <tr>
-  <td>
-Package (sending+recv)
-</td>         <td>
-Size (Bytes)
-</td>     <td>
-Time (us)
-</td>
-  </tr>
-  <tr>
-  <td>
-CommSec
-</td>   <td>
-16
-</td>         <td>
-10
-</td>
-  </tr>
-  <tr>
-  <td>
-CommSec
-</td>   <td>
-2048
-</td>         <td>
-76
-</td>
-  </tr>
-  <tr>
-  <td>
-secure-sockets package
-</td> <td>
-16
-</td>         <td>
-29
-</td>
-  </tr>
-  <tr>
-  <td>
-secure-sockets package
-</td> <td>
-2048
-</td>         <td>
-40
-</td>
-  </tr>
-</table>
-
-<p>These results aren't surprising. The design of commsec means it probably has lower overhead costs, but the GCM routines aren't as well optimized. This means that commsec will be faster on the small packets while secure-sockets is faster on larger messages (until I switch to a faster AES routine or someone optimizes the current one).</p>
-<h1 id="end-notes">End Notes</h1>
-<p>These libraries come with very strong warning: there is no guarentee of correctness. These libraries were not developed with any rigor or peer review!</p>
-<p>As part of the build-up to this package, additional work was done on the <a href="http://hackage.haskell.org/package/crypto-pubkey-openssh">crypto-pubkey-openssh</a> package to ensure we could use ssh RSA keys generated from your typical <a href="http://linux.die.net/man/1/ssh-keygen">ssh-keygen</a> command, as well as work on a <a href="http://hackage.haskell.org/package/cipher-aes128">cipher-aes derivative</a> to improve the throughput for small messages.</p>
+  <h1>Things to do in Portland when you're sick: Benchmarking Cryptographically Secure RNGs</h1>
+  <span class="post-created">Posted 13 May 2013 by Thomas M. DuBuisson</span>
+<p>Random number generator isn't something that non-computer scientists or cryptographers think about very much. The fact is, it's a critical task for almost any secure system - keys, nonces, and passwords all need some entropy and that has to come from somehwere.</p>
+<p>It is actually hard to design generators that give random or seemingly random values. It's harder to do so in a cryptographically secure manner - meaning that there is no practical way to predict part of the output even when given all previous or future values. It's even harder to design a generator that has high performance. If you find the task easy then you can probably make a good living writing research papers on the topic.</p>
+<p>To complicate matters further, the dimensions for comparison are more than security and performance:</p>
+<ul>
+<li><p>Determinism: Most RNGs are pseudo-random - the output is based entirely on their initial seed. This is a useful feature as it allows separate entities to obtain the same random stream without significant communication.</p></li>
+<li><p>Backtracking Resistance: compromise of a future generator does not yield the adversary any ability to compute previous random values.</p></li>
+<li><p>Prediction Resistance: even if the adversary have obtained one state of the RNG they might not be able to predict the future output because the generator can continually incorporate entropy from outside sources.</p></li>
+</ul>
+<p>Fortunately, the world is large and, even in a language that fancies itself a niche, there are options. There are at least four packages on Hackage that are worth trying and the generators available in these packages fit into three catagories:</p>
+<ul>
+<li>Block-Ciphers in counter or quasi-counter mode
+<ul>
+<li><a href="http://hackage.haskell.org/package/intel-aes">intel-aes</a></li>
+<li><a href="http://hackage.haskell.org/package/cprng-aes">cprng-aes</a></li>
+</ul></li>
+<li>NIST Standards Based
+<ul>
+<li><a href="http://hackage.haskell.org/package/DRBG">DRBG</a></li>
+</ul></li>
+<li>External Entropy (operating system backed, RDRAND when available)
+<ul>
+<li><a href="http://hackage.haskell.org/package/crypto-api">crypto-api</a> (using a pre-release version of <a href="https://github.com/TomMD/entropy">entropy</a>)</li>
+</ul></li>
+</ul>
+<h2 id="intel-aes">Intel-AES</h2>
+<p>Based on Intel's AES-NI example code, this package is a fast AES in counter mode. There is no backtracking resistance. It also doesn't currently build due to recent changes to crypto-api, but feel free to try my fixed up <a href="https://github.com/TomMD/intel-aes">git repository</a>.</p>
+<h2 id="cprng-aes">CPRNG-AES</h2>
+<p>This is also an AES without backtracking resistance. Oddly, this is not AES in counter mode, it XORs a counter with the previously returned random bytes to obtain the IV - the reason for this design choice is unknown. CPRNG-AES is more popular than intel-aes, probably due to its cleaner build system.</p>
+<h2 id="deterministic-random-bit-generator-drbg">Deterministic Random Bit Generator (DRBG)</h2>
+<p>DRBG is a collection of generators and modifiers. These generators are all naive English-to-Haskell translations of NIST SP 800-90. Included are Hash-based, HMAC-based, and a counter based generators. These generators are all backtracking resistant and allow additional input to be provided for prediction resistance. Modifiers take as input one or more generators and produce a new generator; the modifiers include automatically reseeding one generator with another, buffering generators, and XORing the output of two generators. The modifiers are all custom solutions, but the underlying generators successfully complete the NIST Known Answer Tests.</p>
+<h2 id="crypto-api-and-entropy">Crypto-API and Entropy</h2>
+<p>Crypto-api provides access to a &quot;system generator&quot; which actually uses either a system source like /dev/urandom or Intel's RDRAND instruction. Lumping this generator in with the above is questionable at best - the above generators are pseudo-random and result in the same output when given the same seed. The <code>SystemRandom</code> generator is IO-based and anything it generates is not reproducable - it's more like reading lazily from an infinitely long file.</p>
+<h1 id="benchmarks">Benchmarks</h1>
+<p>Since all of these generators can be incorporated into a project with near-identical ease, and most users aren't concerned with adherence to standards or other quasi-security arguments, the main difference remaining is performance. I've benchmarked six generators over a range of data-request sizes. The results will hopefully educate potential users about their choices as well as motivate continued development.</p>
+<p>I'll present the mean values in the graph. This is slightly misleading as some generators, such as the buffered generators, have very odd densities, so take your grain of salt.</p>
+<p>(all benchmarks are on an 3.1GhZ laptop with AES-NI and RDRAND)</p>
+<p><img src="/generated-images/tikz-1e956f93bad90b87e96322da923c4cc9a304b492.png" class=""></p>
+<p>Looking these numbers I have the following observations:</p>
+<ul>
+<li><p>It appears CPRNG performs buffering - news to me.</p></li>
+<li><p>Buffering isn't properly shown-off by the benchmark - making CPRNG and CtrDRBG-Buffered look bad. Acquiring one byte one-hundred times still reflects the initial measure of generating our potentially multi-megabyte buffer. In real use cases I expect buffering, to be a nice boon.</p></li>
+<li><p>Intel-AES is amazingly fast. I knew the AES routines relied on by CtrDRBG and CPRNG were sub-par but not to this extent.</p></li>
+<li><p>RDRAND, via SystemRandom, is far and away the best performing generator (assuming your system supports the instruction).</p></li>
+</ul>
+<p>I re-ran the benchmarks, stepping the buffering generators one byte first. This means they get the advantage of precomputing an arbitrary number of bytes up front and just taking bytes off a bytestring to serve requests. The purpuse here is just to confirm we are talking about mere nanoseconds unless the generators need to compute more random data for the buffer.</p>
+<p><img src="/generated-images/tikz-fe285d904737f33eff98b7bb2058e57f0cf8198f.png" class=""></p>
+<h1 id="conclusion">Conclusion</h1>
+<p>I have high respect for all of these packages. They've all shown reasonable performance and include simple APIs (via the <code>RandomAPI</code> and <code>CryptoRandomGen</code> classes). Unless you need top-notch performance (in which case, use <code>SystemRandom</code> or <code>Intel-AES</code>), you'll probably be well served by selecting a package based on features, portability, and preferred API.</p>
 </div>
       <div id="footer">
         Copyright &copy; 2013 Thomas M. DuBuisson
