@@ -244,7 +244,7 @@ Time for multiplication (ms)
     }
     return (-1);
 }</code></pre>
-<p>Instead you should use a divide and conquer algorithm, cutting the array in half in each iteration and multiply the two haves, terminating with an array of length one. This results in $O(lg(n)) noise. Below is a display version that uses tail calls, likely not using memory in anything approaching a wise manner in C++ but it makes for easy reading.</p>
+<p>Instead you should use a divide and conquer algorithm, cutting the array in half in each iteration and multiply the two haves, terminating with an array of length one. This results in <span class="math">\(O(lg(n))\)</span> noise. Below is a display version that uses tail calls, likely not using memory in anything approaching a wise manner in C++ but it makes for easy reading.</p>
 <pre><code>int mulEntireArray_logNoise( Ctxt &amp;res
                            , const vector&lt;Ctxt&gt; input
                            , const EncryptedArray &amp;ea)
