@@ -62,13 +62,13 @@ MathJax.Hub.Config(
   <h1>Secure Computation with HELib</h1>
   <span class="post-created">Posted 13 May 2013 by Thomas M. DuBuisson</span>
 <p>Homomorphic encryption is a hot new area of study and discussion in the world of cryptography. Using homormorphic encryption it is possible to produce ciphertexts on which an arbitrary third party (ex: Amazon) can perform computations despite the encryption. That is to say, if you have a secret (<span class="math">\(pt\)</span>) and homomorphically encrypt it then an operation <span class="math">\(f\)</span> can be performed on the cipher text such that <span class="math">\(decrypt(f(encrypt(pt))) = f(pt)\)</span>.</p>
-<p>This result is truely stunning, but singing the praises, perils, and history of fully, somewhat, semi, or leveled homomorphic encryption is not what this post is about. You can google for the cool implications but today I'm going to talk about a particular open-source homomorphic encryption library (written in C++) called HELib.</p>
+<p>This result is truly stunning, but singing the praises, perils, and history of fully, somewhat, semi, or leveled homomorphic encryption is not what this post is about. You can Google for the cool implications but today I'm going to talk about a particular open-source homomorphic encryption library (written in C++) called HELib.</p>
 <h1 id="what-is-helib">What is HELib?</h1>
 <p><a href="https://github.com/shaih/HElib">HELib</a> implements a homormophic encryption scheme. This library is open source on github and, from a popularity perspective, has really taken off for an obscure crypto library - having over 500 watchers.</p>
 <p>Unlike some earlier HE schemes, HELib uses a SIMD-like optimization known as <a href="http://eprint.iacr.org/2011/133">ciphertext packing</a>. As a result, each individual ciphertext element with which you can perform a computation (addition or multiplication) is conceptually a vector of encrypted plaintext integrals. Thus, this scheme is particularly effective with problems that can benefit from some level of parallel computation.</p>
 <h1 id="example-use-of-helib">Example Use of HELib</h1>
 <p>Folks on github have asked Shai to produce a tutorial showing how to take HELib and perform basic computations such as <span class="math">\(2+2\)</span>. As awesome as Shai and Victor are, I don't expect them to find time to fill this request. Hopefully this section of the blog will suffice for most people. This is more of an HELib quick start guide and absolutely not an FHE primer, there is lots of text of FHE but not much on getting started with HELib.</p>
-<p>Lets start with an example that fills two vectors with integrals, encrypts them homomorphically, and performs component-wise addition and multiplicaiton. This process is actually more involved, the real steps we will go through are: declare our parameters (plaintext space, levels, columns, secret key haming weight, security), generate a secret key, obtain an <code>EncryptedArray</code>, which is a class that aids in later computations, encrypt our vectors, perform addition and multiplication, decrypt the results and print.</p>
+<p>Lets start with an example that fills two vectors with integrals, encrypts them homomorphically, and performs component-wise addition and multiplication. This process is actually more involved, the real steps we will go through are: declare our parameters (plaintext space, levels, columns, secret key haming weight, security), generate a secret key, obtain an <code>EncryptedArray</code>, which is a class that aids in later computations, encrypt our vectors, perform addition and multiplication, decrypt the results and print.</p>
 <p>Without further ado, lets dive in. NOTE: all this code is based on one of HELibs 'Test_*.cpp' examples.</p>
 <p>First some boiler-plate that is already discussed or self explainitory.</p>
 <pre><code>#include &quot;FHE.h&quot;
@@ -134,7 +134,7 @@ int main(int argc, char **argv)
         v2.push_back(i*3);
     }
     ea.encrypt(ct2, publicKey, v2);</code></pre>
-<p>Well that was just some verbose C++ with calls to EncryptedArray::encrypt() hidden within. Hopefully by this point the notion has sunk in that we are talking about a whole vector of plaintext values (v1, v2) that are placed into individual ciphertexts (ct1, ct2).</p>
+<p>Well that was just some verbose C++ with calls to <code>EncryptedArray::encrypt()</code> hidden within. Hopefully by this point the notion has sunk in that we are talking about a whole vector of plaintext values (<code>v1</code>, <code>v2</code>) that are placed into individual ciphertexts (<code>ct1</code>, <code>ct2</code>).</p>
 <p>Lets see some SIMD style computation!</p>
 <pre><code>    // On the public (untrusted) system we
     // can now perform our computation
@@ -226,7 +226,7 @@ Time for multiplication (ms)
 
 <p>It is worth once-again pointing out that this is running on top of NTL, which isn't thread safe. While you get some &quot;parallelism&quot; from the ciphertext packing you can't take easy advantage of multiple cores without multiple processes.</p>
 <h1 id="noise-in-the-ciphertext">Noise in the CipherText</h1>
-<p>Each operation, but most notably multiply, results in a ciphertext that is more &quot;noisy&quot; than its inputs. Too much noise and your decryption will fail (producing results that don't match your intended computaiton). Thus, FHE computations have a notion of depth much like a circuit depth. If you exceed a given depth then the noise inherent to the computation will become great enough that decryption can result in errors. The trick is to know your current depth, for any given ciphertext, and perform a <code>recrypt</code> operation that produces a ciphertext of identical meaning but with reduced noise. However, recrypt is computationally expensive so performing it only when needed is critical.</p>
+<p>Each operation, but most notably multiply, results in a ciphertext that is more &quot;noisy&quot; than its inputs. Too much noise and your decryption will fail (producing results that don't match your intended computation). Thus, FHE computations have a notion of depth much like a circuit depth. If you exceed a given depth then the noise inherent to the computation will become great enough that decryption can result in errors. The trick is to know your current depth, for any given ciphertext, and perform a <code>recrypt</code> operation that produces a ciphertext of identical meaning but with reduced noise. However, recrypt is computationally expensive so performing it only when needed is critical.</p>
 <p>One way to reduce the number of recrypt operations is to increase the &quot;levels&quot; parameter (<code>L</code> in the above example). There is a trade-off with the depth and how often you recrypt - computing over ciphertexts that support more levels is itself more computationally expensive.</p>
 <p>HELib doesn't currently support a recrypt operation, so you are simply not able to perform computations of significant depth - saving you from the misery of determining a good balance between levels and recryption. This does, however, make noise management critical as you simply are not able to perform computations that require significant depth.</p>
 <h1 id="noise-management">Noise Management</h1>
@@ -246,7 +246,7 @@ Time for multiplication (ms)
     }
     return (-1);
 }</code></pre>
-<p>Instead you should use a divide and conqour algorithm, cutting the array in half in each iteration and multiply the two haves, terminating with an array of length one. This results in $O(lg(n)) noise. Below is a display version that uses tail calls, likely not using memory in anything approaching a wise manner in C++ but it makes for easy reading.</p>
+<p>Instead you should use a divide and conquer algorithm, cutting the array in half in each iteration and multiply the two haves, terminating with an array of length one. This results in $O(lg(n)) noise. Below is a display version that uses tail calls, likely not using memory in anything approaching a wise manner in C++ but it makes for easy reading.</p>
 <pre><code>int mulEntireArray_logNoise( Ctxt &amp;res
                            , const vector&lt;Ctxt&gt; input
                            , const EncryptedArray &amp;ea)
