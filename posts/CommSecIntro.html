@@ -37,6 +37,7 @@ MathJax.Hub.Config(
 });
 </script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
     
   </head>
   <body>
@@ -71,27 +72,27 @@ MathJax.Hub.Config(
 <p>The key exchange is based on the RSA-authenticated station to station protocol. This is just an authenticated DH scheme: each side generates <span class="math">\(x (\bmod p)\)</span> and <span class="math">\(y(\bmod p)\)</span>, where <span class="math">\(p\)</span> is a public large prime. They compute and share <span class="math">\(a^x\)</span> and <span class="math">\(a^y\)</span>, where <span class="math">\(a\)</span> is a generator. We then have shared secret <span class="math">\(a^{xy}\)</span> by computing <span class="math">\((a^x)^y\)</span> or <span class="math">\((a^y)^x\)</span>. The result is then verified using an RSA signature, transferring <span class="math">\(\text{AES-CTR}(RSA(a^x, a^y))\)</span> where the AES key is derived from the newly shared secret and each party uses their own private key for signing.</p>
 <h1 id="use">Use</h1>
 <p>You first need to generate RSA keys and share the public key between your communicating systems:</p>
-<pre id="snip1" class="sh"><code>    $ ssh-keygen
+<pre id="snip1" class="sh prettyprint"><code>    $ ssh-keygen
     ...enter a path...</code></pre>
 <p>After that you can using commsec-keyexchange to perform an authenticated key exchange and send/recv data.</p>
-<pre class="sourceCode haskell"><code class="sourceCode haskell">    <span class="kw">import</span> Crypto.PubKey.OpenSsh
+<pre class="sourceCode haskell prettyprint"><code class="sourceCode haskell">    <span class="kw">import</span> Crypto.PubKey.OpenSsh
     <span class="kw">import</span> <span class="kw">qualified</span> Data.ByteString <span class="kw">as</span> B
     <span class="kw">import</span> Network.CommSec.KeyExchange
     
     main <span class="fu">=</span> <span class="kw">do</span>
-        <span class="co">-- Step 1: (not shown) get file paths, host, and port somehow.</span>
+        <span class="co">-- Step 1: (not shown) Get file paths, host, and port.</span>
         <span class="co">-- Step 2: Read in the keys</span>
-        <span class="dt">OpenSshPrivateKeyRsa</span> priv  <span class="ot">&lt;-</span> (<span class="fu">either</span> <span class="fu">error</span> <span class="fu">id</span> <span class="fu">.</span> decodePrivate) <span class="ot">`fmap`</span>
-                                      B.readFile myPrivateKeyFile
-        <span class="dt">OpenSshPublicKeyRsa</span> them _ <span class="ot">&lt;-</span> (<span class="fu">either</span> <span class="fu">error</span> <span class="fu">id</span> <span class="fu">.</span> decodePublic)  <span class="ot">`fmap`</span>
-                                      B.readFile theirPublicKeyFile</code></pre>
+        <span class="kw">let</span> dec d f <span class="fu">=</span> ether <span class="fu">error</span> <span class="fu">id</span> <span class="fu">.</span> d <span class="ot">`fmap`</span> B.readFile f
+        <span class="dt">OpenSshPrivateKeyRsa</span> priv  <span class="ot">&lt;-</span> dec decodePrivate myPrivateKeyFile
+        <span class="dt">OpenSshPublicKeyRsa</span> them _ <span class="ot">&lt;-</span> dec decodePublic theirPublicKeyFile</code></pre>
 <p>The first thing we do is obtain the RSA keys - our private key and their public key.</p>
-<pre class="sourceCode haskell" id="step3"><code class="sourceCode haskell">        <span class="co">-- Step 3: Listen for and accept a connection (alternatively: connect to a listener).</span>
+<pre class="sourceCode haskell prettyprint" id="step3"><code class="sourceCode haskell">        <span class="co">-- Step 3: Listen for and accept a connection</span>
+        <span class="co">--         (alternatively: connect to a listener).</span>
         ctx <span class="ot">&lt;-</span> <span class="kw">if</span> doAccept
                 <span class="kw">then</span> accept host port them priv
                 <span class="kw">else</span> connect host port them priv</code></pre>
 <p>After that we can perform a key exchange, which allows establishes a socket and shared key.</p>
-<pre class="sourceCode haskell" id="step4"><code class="sourceCode haskell">        <span class="co">-- Step 4: Use the communication contexts along with</span>
+<pre class="sourceCode haskell prettyprint" id="step4"><code class="sourceCode haskell">        <span class="co">-- Step 4: Use the communication contexts along with</span>
         <span class="co">-- the send and recv primitives to communicate.</span>
         send ctx <span class="st">&quot;Hello!&quot;</span>
         recv ctx <span class="fu">&gt;&gt;=</span> <span class="fu">print</span></code></pre>

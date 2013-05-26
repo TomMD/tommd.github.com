@@ -37,6 +37,7 @@ MathJax.Hub.Config(
 });
 </script>
     <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML"></script>
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js"></script>
     
   </head>
   <body>
@@ -71,95 +72,99 @@ MathJax.Hub.Config(
 <p>Lets start with an example that fills two vectors with integrals, encrypts them homomorphically, and performs component-wise addition and multiplication. This process is actually more involved, the real steps we will go through are: declare our parameters (plaintext space, levels, columns, secret key haming weight, security), generate a secret key, obtain an <code>EncryptedArray</code>, which is a class that aids in later computations, encrypt our vectors, perform addition and multiplication, decrypt the results and print.</p>
 <p>Without further ado, lets dive in. NOTE: all this code is based on one of HELibs 'Test_*.cpp' examples.</p>
 <p>First some boiler-plate that is already discussed or self explainitory.</p>
-<pre><code>#include &quot;FHE.h&quot;
-#include &quot;EncryptedArray.h&quot;
-#include &lt;NTL/lzz_pXFactoring.h&gt;
-#include &lt;fstream&gt;
-#include &lt;sstream&gt;
-#include &lt;sys/time.h&gt;
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
+<span class="ot">#include &quot;FHE.h&quot;</span>
+<span class="ot">#include &quot;EncryptedArray.h&quot;</span>
+<span class="ot">#include &lt;NTL/lzz_pXFactoring.h&gt;</span>
+<span class="ot">#include &lt;fstream&gt;</span>
+<span class="ot">#include &lt;sstream&gt;</span>
+<span class="ot">#include &lt;sys/time.h&gt;</span>
 
-int main(int argc, char **argv)
+<span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> **argv)
 {
-    /* On our trusted system we generate a new key (or read one in)
-     * and encrypt the secret data set
-     */
+    <span class="co">/* On our trusted system we generate a new key</span>
+<span class="co">     * (or read one in) and encrypt the secret data set.</span>
+<span class="co">     */</span>
 
-    long m=0, p=2, r=1; // Native plaintext space
-                        // Computations will be &#39;modulo p&#39;
-    long L=16;          // Levels
-    long c=3;           // Columns in key switching matrix
-    long w=64;          // Hamming weight of secret key
-    long d=0;
-    long security = 128;
+    <span class="dt">long</span> m=<span class="dv">0</span>, p=<span class="dv">2</span>, r=<span class="dv">1</span>; <span class="co">// Native plaintext space</span>
+                        <span class="co">// Computations will be &#39;modulo p&#39;</span>
+    <span class="dt">long</span> L=<span class="dv">16</span>;          <span class="co">// Levels</span>
+    <span class="dt">long</span> c=<span class="dv">3</span>;           <span class="co">// Columns in key switching matrix</span>
+    <span class="dt">long</span> w=<span class="dv">64</span>;          <span class="co">// Hamming weight of secret key</span>
+    <span class="dt">long</span> d=<span class="dv">0</span>;
+    <span class="dt">long</span> security = <span class="dv">128</span>;
     ZZX G;
-    m = FindM(security,L,c,p, d, 0, 0);</code></pre>
+    m = FindM(security,L,c,p, d, <span class="dv">0</span>, <span class="dv">0</span>);</code></pre>
 <p>Notice the parameter names are pretty consistent in HELib examples as well as the literature. In this case, I am building for GF(2) - so my homormorphic addition is XOR and multiplication is AND. Changing this is as easy as changing the value of <code>p</code>. Folks wanting to see <code>2+2=4</code> should set p to something that matches their desired domain, such as 257 to obtain 8 bit Ints.</p>
 <p>NOTE: I ran into a bug with <code>p=65537</code> and had to manually set <code>m</code> to an acceptable value, 65539, because <code>FindM()</code> failed.</p>
 <p>Now lets use these parameters to build a private key - HELib is evidently asymmetric in addition to being homomorphic, wow!</p>
-<pre><code>    FHEcontext context(m, p, r);
-    // initialize context
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
+    FHEcontext context(m, p, r);
+    <span class="co">// initialize context</span>
     buildModChain(context, L, c);
-    // modify the context, adding primes to the modulus chain
+    <span class="co">// modify the context, adding primes to the modulus chain</span>
     FHESecKey secretKey(context);
-    // construct a secret key structure associated with the context
-    const FHEPubKey&amp; publicKey = secretKey;
-    // an &quot;upcast&quot;: FHESecKey is a subclass of FHEPubKey
+    <span class="co">// construct a secret key structure</span>
+    <span class="dt">const</span> FHEPubKey&amp; publicKey = secretKey;
+    <span class="co">// an &quot;upcast&quot;: FHESecKey is a subclass of FHEPubKey</span>
 
-    //if(0 == d)
-    G = context.alMod.getFactorsOverZZ()[0];
+    <span class="co">//if(0 == d)</span>
+    G = context.alMod.getFactorsOverZZ()[<span class="dv">0</span>];
 
-    secretKey.GenSecKey(w);
-    // actually generate a secret key with Hamming weight w
+   secretKey.GenSecKey(w);
+   <span class="co">// actually generate a secret key with Hamming weight w</span>
 
-    addSome1DMatrices(secretKey);
-    cout &lt;&lt; &quot;Generated key&quot; &lt;&lt; endl;</code></pre>
+   addSome1DMatrices(secretKey);
+   cout &lt;&lt; <span class="st">&quot;Generated key&quot;</span> &lt;&lt; endl;</code></pre>
 <p>We have now generated a secret key. Notice the public key was extracted from the private key - this is C++, that isn't just an alias. Interestingly, a public key in this context need only be an encryption of &quot;1&quot;.</p>
 <p>Lets get our helper class instantiated:</p>
-<pre><code>    EncryptedArray ea(context, G);
-    // constuct an Encrypted array object ea that is
-    // associated with the given context and the polynomial G
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
+   EncryptedArray ea(context, G);
+   <span class="co">// constuct an Encrypted array object ea that is</span>
+   <span class="co">// associated with the given context and the polynomial G</span>
 
-    long nslots = ea.size();</code></pre>
+   <span class="dt">long</span> nslots = ea.size();</code></pre>
 <p>I find having an <code>nslots</code> value around is useful. You can't pick the number of slots (plaintext elements) a ciphertext can hold, but you can learn what parameters control this value and try to optimize for your situation. Now for encryption.</p>
-<pre><code>    vector&lt;long&gt; v1;
-    for(int i = 0 ; i &lt; nslots; i++) {
-        v1.push_back(i*2);
-    }
-    Ctxt ct1(publicKey);
-    ea.encrypt(ct1, publicKey, v1);
-
-    vector&lt;long&gt; v2;
-    Ctxt ct2(publicKey);
-    for(int i = 0 ; i &lt; nslots; i++) {
-        v2.push_back(i*3);
-    }
-    ea.encrypt(ct2, publicKey, v2);</code></pre>
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
+   vector&lt;<span class="dt">long</span>&gt; v1;
+   <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span> ; i &lt; nslots; i++) {
+       v1.push_back(i*<span class="dv">2</span>);
+   }
+   Ctxt ct1(publicKey);
+   ea.encrypt(ct1, publicKey, v1);
+    
+   vector&lt;<span class="dt">long</span>&gt; v2;
+   Ctxt ct2(publicKey);
+   <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span> ; i &lt; nslots; i++) {
+       v2.push_back(i*<span class="dv">3</span>);
+   }
+   ea.encrypt(ct2, publicKey, v2);</code></pre>
 <p>Well that was just some verbose C++ with calls to <code>EncryptedArray::encrypt()</code> hidden within. Hopefully by this point the notion has sunk in that we are talking about a whole vector of plaintext values (<code>v1</code>, <code>v2</code>) that are placed into individual ciphertexts (<code>ct1</code>, <code>ct2</code>).</p>
 <p>Lets see some SIMD style computation!</p>
-<pre><code>    // On the public (untrusted) system we
-    // can now perform our computation
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">   <span class="co">// On the public (untrusted) system we</span>
+   <span class="co">// can now perform our computation</span>
 
-    Ctxt ctSum = ct1;
-    Ctxt ctProd = ct1;
+   Ctxt ctSum = ct1;
+   Ctxt ctProd = ct1;
 
-    ctSum += ct2;
-    ctProd *= ct2;</code></pre>
+   ctSum += ct2;
+   ctProd *= ct2;</code></pre>
 <p>Well damn, that was anti-climactic. When you think about it, it should be almost disappointingly easy if this library is as awesome as I hope I hyped you up to expect.</p>
 <p>Finally, we will decrypt the sum and product results:</p>
-<pre><code>    vector&lt;long&gt; res;
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">    vector&lt;<span class="dt">long</span>&gt; res;
     ea.decrypt(ctSum, secretKey, res);
 
-    cout &lt;&lt; &quot;All computations are modulo &quot; &lt;&lt; p &lt;&lt; &quot;.&quot; &lt;&lt; endl;
-    for(int i = 0; i &lt; res.size(); i ++) {
-        cout &lt;&lt; v1[i] &lt;&lt; &quot; + &quot; &lt;&lt; v2[i] &lt;&lt; &quot; = &quot; &lt;&lt; res[i] &lt;&lt; endl;
+    cout &lt;&lt; <span class="st">&quot;All computations are modulo &quot;</span> &lt;&lt; p &lt;&lt; <span class="st">&quot;.&quot;</span> &lt;&lt; endl;
+    <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span>; i &lt; res.size(); i ++) {
+        cout &lt;&lt; v1[i] &lt;&lt; <span class="st">&quot; + &quot;</span> &lt;&lt; v2[i] &lt;&lt; <span class="st">&quot; = &quot;</span> &lt;&lt; res[i] &lt;&lt; endl;
     }
 
     ea.decrypt(ctProd, secretKey, res);
-    for(int i = 0; i &lt; res.size(); i ++) {
-        cout &lt;&lt; v1[i] &lt;&lt; &quot; * &quot; &lt;&lt; v2[i] &lt;&lt; &quot; = &quot; &lt;&lt; res[i] &lt;&lt; endl;
+    <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span>; i &lt; res.size(); i ++) {
+        cout &lt;&lt; v1[i] &lt;&lt; <span class="st">&quot; * &quot;</span> &lt;&lt; v2[i] &lt;&lt; <span class="st">&quot; = &quot;</span> &lt;&lt; res[i] &lt;&lt; endl;
     }
 
-    return 0;
+    <span class="kw">return</span> <span class="dv">0</span>;
 }</code></pre>
 <p>And that's it - under one hundred lines and you have a program that can add, multiply, subtract, and negate (see the header files) data without even knowing the values.</p>
 <h1 id="performance">Performance</h1>
@@ -230,57 +235,59 @@ Time for multiplication (ms)
 <h1 id="noise-management">Noise Management</h1>
 <p>I just told you that FHE operations produce ciphertexts that build up noise and this noise prevents decryption. Furthermore, in HELib (as it stands today) this causes a limit to the depth of the computations you can practically perform. As a result, you, the programmer, must be intelligent with respect to your algorithms and how they combine ciphertexts.</p>
 <p>For example, if you wish to acquire the product of an array of ciphertexts (which are themselves arrays of slots) you could perform what is known in functional programming as a fold - a for loop taking a zero element and adding each element in the array. An implementation can be seen below, this is horrible as it causes <span class="math">\(O(n)\)</span> noise, where <span class="math">\(n\)</span> is the length of the array.</p>
-<pre><code>int mulEntireArray( Ctxt &amp;res
-                  , const vector&lt;Ctxt&gt; input
-                  , const EncryptedArray &amp;ea)
-{
-    const int nrElem  = input.size();
-    if(nrElem &gt; 0) {
-        res = input[0];
-        for(int i = 1; i &lt; nrElem; i++) {
-            res.multiplyBy(input[i]);
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">    <span class="dt">int</span> mulEntireArray( Ctxt &amp;res
+                      , <span class="dt">const</span> vector&lt;Ctxt&gt; input
+                      , <span class="dt">const</span> EncryptedArray &amp;ea)
+    {
+        <span class="dt">const</span> <span class="dt">int</span> nrElem  = input.size();
+        <span class="kw">if</span>(nrElem &gt; <span class="dv">0</span>) {
+            res = input[<span class="dv">0</span>];
+            <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">1</span>; i &lt; nrElem; i++) {
+                res.multiplyBy(input[i]);
+            }
+            <span class="kw">return</span> <span class="dv">0</span>;
         }
-        return 0;
-    }
-    return (-1);
-}</code></pre>
+        <span class="kw">return</span> (-<span class="dv">1</span>);
+    }</code></pre>
 <p>Instead you should use a divide and conquer algorithm, cutting the array in half in each iteration and multiply the two haves, terminating with an array of length one. This results in <span class="math">\(O(lg(n))\)</span> noise. Below is a display version that uses tail calls, likely not using memory in anything approaching a wise manner in C++ but it makes for easy reading.</p>
-<pre><code>int mulEntireArray_logNoise( Ctxt &amp;res
-                           , const vector&lt;Ctxt&gt; input
-                           , const EncryptedArray &amp;ea)
-{
-    const size_t nrElem  = input.size();
-    if(nrElem &gt; 1) {
-        vector&lt;Ctxt&gt; tmp((nrElem+1)/2, Ctxt(input[0].getPubKey()));
-        const size_t sz = tmp.size();
-        for(int i=0 ; i &lt; sz; i++) {
-            tmp[i] = input[i];
+<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">    <span class="dt">int</span> mulEntireArray_logNoise( Ctxt &amp;res
+                               , <span class="dt">const</span> vector&lt;Ctxt&gt; input
+                               , <span class="dt">const</span> EncryptedArray &amp;ea)
+    {
+        <span class="dt">const</span> size_t nrElem  = input.size();
+        <span class="kw">if</span>(nrElem &gt; <span class="dv">1</span>) {
+            vector&lt;Ctxt&gt; tmp( (nrElem<span class="dv">+1</span>)/<span class="dv">2</span>
+                            , Ctxt(input[<span class="dv">0</span>].getPubKey()));
+            <span class="dt">const</span> size_t sz = tmp.size();
+            <span class="kw">for</span>(<span class="dt">int</span> i=<span class="dv">0</span> ; i &lt; sz; i++) {
+                tmp[i] = input[i];
+            }
+            <span class="kw">for</span>(<span class="dt">int</span> i=<span class="dv">0</span> ; i &lt; sz &amp;&amp; (sz + i) &lt; nrElem; i++) {
+                tmp[i].multiplyBy(input[sz + i]);
+            }
+            mulEntireArray_logNoise(res, tmp, ea);
         }
-        for(int i=0 ; i &lt; sz &amp;&amp; (sz + i) &lt; nrElem; i++) {
-            tmp[i].multiplyBy(input[sz + i]);
-        }
-        mulEntireArray_logNoise(res, tmp, ea);
-    }
-    else
-        res = input[0];
-    return 0;
-}</code></pre>
+        <span class="kw">else</span>
+            res = input[<span class="dv">0</span>];
+        <span class="kw">return</span> <span class="dv">0</span>;
+    }</code></pre>
 <p>The important part of the above is that <code>tmp</code> copies the first half of input and multiplies by the second half, terminating when it has a one element vector.</p>
 <h1 id="minor-details-building-and-the-like">Minor Details: Building and the Like</h1>
 <p>HELib currently exists only as a git repository, there is no distribution package or Windows installer. What's more, it depends on a new version of NTL (6.0) that is not packaged by many distributions. To get going, you are going to need to download and install NTL, git clone HELib, build HELib remembering to link it against the new NTL and then build your application.</p>
 <p>For *nix users, the NTL portion should be as simple as:</p>
-<pre><code>wget http://www.shoup.net/ntl/ntl-6.0.0.tar.gz
-tar xzf ntl-6.0.0.tar.gz
-cd ntl-6.0.0
-./configure &amp;&amp; make &amp;&amp; sudo make install # or something like this</code></pre>
+<pre id="mycode" class="sh prettyprint"><code>    wget http://www.shoup.net/ntl/ntl-6.0.0.tar.gz
+    tar xzf ntl-6.0.0.tar.gz
+    cd ntl-6.0.0
+    ./configure &amp;&amp; make &amp;&amp; sudo make install # or something like this</code></pre>
 <p>Then to get and build HELib:</p>
-<pre><code>git clone git://github.com/shaih/HElib.git
-cd HElib/src
-# Edit the Makefile as needed
-# It already had the correct -I and -L paths for me
-make</code></pre>
+<pre id="mycode" class="sh prettyprint"><code>    git clone git://github.com/shaih/HElib.git
+    cd HElib/src
+    # Edit the Makefile as needed
+    # It already had the correct -I and -L paths for me
+    make</code></pre>
 <p>Now you can write your application and compile it via:</p>
-<pre><code>g++ App.cpp $HELib/src/fhe.a -I$HELib/src -o App -L/usr/local/lib -lntl</code></pre>
+<pre id="mycode" class="sh prettyprint"><code>    g++ App.cpp $HELib/src/fhe.a -I$HELib/src -o App \
+                                 -L/usr/local/lib -lntl</code></pre>
 <h1 id="future">Future</h1>
 <p>HELib is a young library in a rather young field of cryptography. It blows my mind that the library is so well formed at this point. Hopefully we will see serious contributors and an active community.</p>
 <p>If anyone is interested in either making Haskell bindings or porting it to using something thread safe (not NTL) then I'd be interested and would likely contribute, so get in touch.</p>
