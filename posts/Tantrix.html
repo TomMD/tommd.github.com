@@ -47,7 +47,7 @@ MathJax.Hub.Config(
         <a href="/">The Type-Safe Jabberwolk</a>
       </div>
       <div id="prev-next-links">
-      <a class="prev-link" href="/posts/BlockCiphersAndRNG.html">older &raquo;</a>
+      <a class="prev-link" href="/posts/HELib-Intro.html">older &raquo;</a>
   
       <a class="next-link-subdued">&laquo; newer</a>
   
@@ -64,12 +64,12 @@ MathJax.Hub.Config(
   <span class="post-created">Posted 25 December 2015 by Thomas M. DuBuisson</span>
 <p>I just noticed <a href="https://twitter.com/ID_AA_Carmack/status/680569924931063808">John Carmack's tweet</a> about solving the <a href="http://www.tantrix.com/english/TantrixPuzzles.html">Tantrix puzzle</a> in Racket. I like solving puzzles with Cryptol and this seemed like a good opportunity for a non-cherry-picked problem.</p>
 <h1 id="cryptol">Cryptol?</h1>
-<p>Cryptol started as a domain specific langauge for cryptography. It has native support for arbitrary bit-width words and a built in bridge to automated SMT solvers. Each word is represented as a bit array which can be trivially permuted, split, joined, and indexed. These days, many people think of Cryptol as a convenient high-level language for running SAT or SMT solvers.</p>
+<p>Cryptol started as a domain specific language for cryptography. It has native support for arbitrary bit-width words and a built in bridge to automated (SMT) solvers. Each word is represented as a bit array which can be trivially permuted, split, joined, and indexed. These days, many people think of Cryptol as a convenient high-level language for running SAT or SMT solvers.</p>
 <h1 id="tantrix">Tantrix?</h1>
-<p>I didn't know what tantrix was, but the above link has a decent explanation. In short, there are ten hexagonal shaped puzzle pieces with 3 different colored lines on each. The task is to make a loop out of a particular color using a particular number of tiles. For example, it should be simple to use three tiles and create a loop for the yellow line.</p>
+<p>I didn't know what Tantrix was, but the above link has a decent explanation. In short, there are ten hexagonal shaped puzzle pieces with 3 different colored lines on each. The task is to make a loop out of a particular color using a particular number of tiles. For example, it should be simple to use three tiles and create a loop for the yellow line.</p>
 <h1 id="solution-strategy">Solution Strategy</h1>
 <p>In contrast with general purpose languages in which you'd probably make an A* or similar search procedure, the solution strategy with Cryptol is almost always to describe the problem and define a boolean test that returns true for a valid solution. After we have a way to recognize the final solution just ask one of the satisfiability solvers to find the assignment that makes this function return true.</p>
-<p>A more subtle contrast illuminates the method along with its relateive strengths and weaknesses. Solutions that use SAT to recognize a valid solution require the developer to make an exhastive set of rules or checks for each necessary condition. Solutions involving construction, testing, and back-tracking search encode some requirements implicitly in the construction and omit some checks in the final valid solution test. As a result, it can be conceptually hard to identify and write all necessary constraints of the solution but the reward is a concice description of valid solutions that is more aminable to later adjustment or application to related problems.</p>
+<p>A more subtle contrast illuminates the method along with its relative strengths and weaknesses. Solutions that use SAT to recognize a valid solution require the developer to make an exhaustive set of rules or checks for each necessary condition. Solutions involving construction, testing, and back-tracking search encode some requirements implicitly in the construction and omit some checks in the final valid solution test. As a result, it can be conceptually hard to identify and write all necessary constraints of the solution but the reward is a concise description of valid solutions that is more amenable to later adjustment or application to related problems.</p>
 <h1 id="onward-to-cryptol-and-glory">Onward to Cryptol and Glory</h1>
 <p>We've established that we'll be defining the Tantrix puzzle in Cryptol then using SAT to find the valid solution, so let's get to it. First we need to define the puzzle pieces and some basic operations.</p>
 <p>Since there are only three colors we'll use 2 bits for color:</p>
@@ -92,7 +92,7 @@ tiles = [ [r, y, y, b, r, b]
 
 red,blue,yellow : Color
 (red,blue,yellow) = (0,1,2)</code></pre>
-<p>Placements, the below <code>Pt</code> type, are a collecttion of a tile, location on the grid, and a rotation.</p>
+<p>Placements, the below <code>Pt</code> type, are a collection of a tile, location on the grid, and a rotation.</p>
 <pre class="cryptol prettyprint"><code>type Pos   = ([8],[8])
 type Dir   = [3]
 type Rot   = Dir
@@ -122,11 +122,11 @@ isAdjacent p0 p1 = or [neighbor p0 d == p1 | d &lt;- directions] &amp;&amp; noOv
 
 dirColor : Dir -&gt; Pt -&gt; Color
 dirColor dir (_l, tile, rot) = tile @ ((extend dir + extend rot : [4]) % 6)</code></pre>
-<p>We've ran across our first gotchas! A first we might check adjacency and calculate dirColor through simple arithmetic such as <code>a.x == b.x + 1</code> but that doesn't account for overflow. Without these checks SAT will result in more interesting solutions than most people like. In the case of adjacency we cheat by not allowing the maximum index and use an excessively large grid.</p>
+<p>We've ran across our first gotchas! A first attempt might check adjacency and calculate <code>dirColor</code> through simple arithmetic such as <code>a.x == b.x + 1</code> but that doesn't account for overflow. Without these checks SAT will result in more interesting solutions than most people like. In the case of adjacency we cheat by not allowing the maximum index and use an excessively large grid.</p>
 <p>Now that we have the structure, the solution starts to deviate from what Carmack pasted. What's left for us is not a construction of lines and tree search but &quot;merely&quot; describing a valid board. Valid boards for a given color have to 1. Have only valid placements 2. Use each tile only once 3. No tiles overlap 4. when considering the line it must form a loop. Let's focus on the first three and break 4 down in a minute.</p>
-<p>Step 1: Validating placments is a check that the tile from the original game - the <code>tiles</code> array.</p>
-<p>Steps 2 and 3: Uniqueness testing of the tiles, their positions or anything else can be done in a few ways. Conceptually we can just test each element for equality with all elements in the set and ensure only one was equal (e.g. to itself). While this appears inefficient two things to remember are that this toy problem is small and there is an army of optimizations just under the surface. We do have to pay the cost of synactically reforming the problem but many duplicated and excess terms will be handled by the solver.</p>
-<p>We also require the board include origin. Requiring origin is without loss of generality (I think) because the whole board can be rotated till a tile fits in the origin's corner, but I have not proven this to be the case.</p>
+<p>Step 1: Placement validation is a check that each tile is from the original game - the <code>tiles</code> array.</p>
+<p>Steps 2 and 3: Uniqueness testing of the tiles, their positions, or anything else can be done in a few ways. Conceptually we can just test each element for equality with all elements in the set and ensure only one was equal (e.g. to itself). While this appears inefficient two things to remember are that this toy problem is small and there is an army of optimizations just under the surface. We do have to pay the cost of syntactically reforming the problem but many duplicated and excess terms will be handled by the solver.</p>
+<p>We also require the board to include the origin. Requiring a tile at the origin is without loss of generality (I think) because the whole board can be rotated till a tile fits in the origin's corner, but I have not proven this to be the case.</p>
 <pre class="cryptol prettyprint"><code>validSolution : {n} (n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
 validSolution c brd =
         hasOrigin &amp;&amp; validTileSet brd &amp;&amp;
@@ -137,8 +137,8 @@ validSolution c brd =
            fromBag = and [ elem b.1 tiles | b &lt;- bs ]
  uniquePositions bs = and [uniquely (\x -&gt; x.0 == b.0) bs | b &lt;- bs]
  hasOrigin = or [b.0 == zero | b &lt;- brd]</code></pre>
-<p>The simplest method I found for loop checking breaks the problem down in three ways 1. Ensure the board ordered such that each tile adjacent in the array is conceptually adjacent on the board 2. Walking the path forward from the current tile, the direction the next neighbor is in includes the color of interest 3. Walking the path backward from the current tile, the direction of the neighbor is also the direction of the color of interst.</p>
-<p>All three of these requirements can be expressed by the same path traversal that takes a predicate. Make sure the last tile matches up to the first so we have a loop instead of an uninterrupted line - I handled this with an excessive, but sufficient, extra lap around the loop.</p>
+<p>The simplest method I found for loop checking breaks the problem down in three ways 1. Ensure the board is ordered such that each tile adjacent in the array is conceptually adjacent on the board 2. Walking the path forward from the current tile, the direction of the next neighbor is also a direction of the color of interest 3. Walking the path backward from the current tile, the direction of the neighbor is also the direction of the color of interest.</p>
+<p>All three of these requirements can be expressed by the same path traversal that takes a predicate and tests every pair of neighbors. We must make sure the last tile and first tile are paired too so we have a loop instead of an uninterrupted line. I handled this with an excessive, but sufficient, extra lap around the loop.</p>
 <pre class="cryptol prettyprint"><code>boardIsLoop : {n} (fin n, n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
 boardIsLoop c bs =
         forPath adjacentPl  bs &amp;&amp;
@@ -148,8 +148,9 @@ boardIsLoop c bs =
   forPath pred xs = and [pred b0 b1 | b0 &lt;- (xs # xs)
                                     | b1 &lt;- drop `{1} (xs # xs) ]
   adjacentPl  a b = isAdjacent a.0 b.0
-  colorsMatch a b = and [b.0 == neighbor a.0 d ==&gt; dirColor d a == c| d &lt;- directions]</code></pre>
-<p>And that's the entirety of the solution. We can get a little prettier (and smaller) by 1. Pushing lots of the helper functions into Cryptol and 2. Defining a pretty printing function. Item 1 is done - pull request 299 on github. Item 2 is small unless you want something graphical or colored text, which Cryptol as a DSL can not do. My pretty printer performs the rotations and presents the color values in a normalized form:</p>
+  colorsMatch a b = and [b.0 == neighbor a.0 d ==&gt; dirColor d a == c
+                                | d &lt;- directions]</code></pre>
+<p>And that's the entirety of the solution. We can get a little prettier (and smaller) by 1. Pushing lots of the helper functions into Cryptol and 2. Defining a pretty printing function. Item 1 is done - pull request 299 on github and would benefit actual project, not just toys. Cryptol needs a larger Prelude. Item 2 is small unless you want something graphical or colored text, which Cryptol as a DSL can not do. My pretty printer performs the rotations and presents the color values in a normalized form:</p>
 <pre class="cryptol prettyprint"><code>pretty : {n} (fin n) =&gt; Board n -&gt; [n](Pos, [6]Color)
 pretty bs = [ (b.0, b.1 &lt;&lt;&lt; b.2) | b &lt;- bs ]</code></pre>
 <p>Now we can run code to obtain solutions:</p>
@@ -161,7 +162,7 @@ pretty (it.arg1)
 <p>Solving all 10 versions of the problem takes a heart-beat. Not surprising, but fun and educational for the kids at Christmas.</p>
 </div>
       <div id="footer">
-        Copyright &copy; 2013 Thomas M. DuBuisson
+        Copyright &copy; 2015 Thomas M. DuBuisson
       </div>
     </div>
   </body>
