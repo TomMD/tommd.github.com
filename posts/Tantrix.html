@@ -73,10 +73,10 @@ MathJax.Hub.Config(
 <h1 id="onward-to-cryptol-and-glory">Onward to Cryptol and Glory</h1>
 <p>We've established that we'll be defining the Tantrix puzzle in Cryptol then using SAT to find the valid solution, so let's get to it. First we need to define the puzzle pieces and some basic operations.</p>
 <p>Since there are only three colors we'll use 2 bits for color:</p>
-<pre><code>type Color = [2]
+<pre class="cryptol prettyprint"><code>type Color = [2]
 type Tile  = [6]Color</code></pre>
 <p>Our puzzle has ten hexagonal tiles. Each Tile has three colored lines connecting two of the sides. Each side has exactly one color. Borrowing significantly from John Carmack's code mentioned in the introduction, our pieces start with the right-most color and go clock-wise from there.</p>
-<pre><code>tiles : [10]Tile
+<pre class="cryptol prettyprint"><code>tiles : [10]Tile
 tiles = [ [r, y, y, b, r, b]
         , [b, r, r, b, y, y]
         , [r, r, b, b, y, y]
@@ -93,7 +93,7 @@ tiles = [ [r, y, y, b, r, b]
 red,blue,yellow : Color
 (red,blue,yellow) = (0,1,2)</code></pre>
 <p>Placements, the below <code>Pt</code> type, are a collecttion of a tile, location on the grid, and a rotation.</p>
-<pre><code>type Pos   = ([8],[8])
+<pre class="cryptol prettyprint"><code>type Pos   = ([8],[8])
 type Dir   = [3]
 type Rot   = Dir
 type Pt    = (Pos,Tile,Rot)
@@ -101,7 +101,7 @@ type Pt    = (Pos,Tile,Rot)
 // Completed boards are n placements
 type Board n = [n]Pt</code></pre>
 <p>We can now add some simple helper functions to obtain the neighbor positions, test for neighbors, and get the color of a particular placed piece at a particular point (0 is right, working clockwise).</p>
-<pre><code>directions : [6]Dir
+<pre class="cryptol prettyprint"><code>directions : [6]Dir
 directions = [0..5]
 
 neighbor : Pos -&gt; Dir -&gt; Pos
@@ -127,7 +127,7 @@ dirColor dir (_l, tile, rot) = tile @ ((extend dir + extend rot : [4]) % 6)</cod
 <p>Step 1: Validating placments is a check that the tile from the original game - the <code>tiles</code> array.</p>
 <p>Steps 2 and 3: Uniqueness testing of the tiles, their positions or anything else can be done in a few ways. Conceptually we can just test each element for equality with all elements in the set and ensure only one was equal (e.g. to itself). While this appears inefficient two things to remember are that this toy problem is small and there is an army of optimizations just under the surface. We do have to pay the cost of synactically reforming the problem but many duplicated and excess terms will be handled by the solver.</p>
 <p>We also require the board include origin. Requiring origin is without loss of generality (I think) because the whole board can be rotated till a tile fits in the origin's corner, but I have not proven this to be the case.</p>
-<pre><code>validSolution : {n} (n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
+<pre class="cryptol prettyprint"><code>validSolution : {n} (n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
 validSolution c brd = hasOrigin &amp;&amp; validTileSet brd &amp;&amp; uniquePositions brd &amp;&amp; boardIsLoop c brd
  where
  validTileSet bs = unique &amp;&amp; fromBag
@@ -137,14 +137,14 @@ validSolution c brd = hasOrigin &amp;&amp; validTileSet brd &amp;&amp; uniquePos
  hasOrigin = or [b.0 == zero | b &lt;- brd]</code></pre>
 <p>The simplest method I found for loop checking breaks the problem down in three ways 1. Ensure the board ordered such that each tile adjacent in the array is conceptually adjacent on the board 2. Walking the path forward from the current tile, the direction the next neighbor is in includes the color of interest 3. Walking the path backward from the current tile, the direction of the neighbor is also the direction of the color of interst.</p>
 <p>All three of these requirements can be expressed by the same path traversal that takes a predicate. Make sure the last tile matches up to the first so we have a loop instead of an uninterrupted line - I handled this with an excessive, but sufficient, extra lap around the loop.</p>
-<pre><code>boardIsLoop : {n} (fin n, n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
+<pre class="cryptol prettyprint"><code>boardIsLoop : {n} (fin n, n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
 boardIsLoop c bs = forPath adjacentPl bs &amp;&amp; forPath colorsMatch bs &amp;&amp; forPath colorsMatch (reverse bs)
  where
   forPath pred xs = and [pred b0 b1 | b0 &lt;- (xs # xs) | b1 &lt;- drop `{1} (xs # xs) ]
   adjacentPl  a b = isAdjacent a.0 b.0
   colorsMatch a b = and [b.0 == neighbor a.0 d ==&gt; dirColor d a == c | d &lt;- directions]</code></pre>
 <p>And that's the entirety of the solution. We can get a little prettier (and smaller) by 1. Pushing lots of the helper functions into Cryptol and 2. Defining a pretty printing function. Item 1 is done - pull request 299 on github. Item 2 is small unless you want something graphical or colored text, which Cryptol as a DSL can not do. My pretty printer performs the rotations and presents the color values in a normalized form:</p>
-<pre><code>pretty : {n} (fin n) =&gt; Board n -&gt; [n](Pos, [6]Color)
+<pre class="cryptol prettyprint"><code>pretty : {n} (fin n) =&gt; Board n -&gt; [n](Pos, [6]Color)
 pretty bs = [ (b.0, b.1 &lt;&lt;&lt; b.2) | b &lt;- bs ]</code></pre>
 <p>Now we can run code to obtain solutions:</p>
 <pre><code>:sat (validSolution `{3} yellow)
