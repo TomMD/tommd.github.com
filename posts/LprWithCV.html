@@ -76,29 +76,33 @@ through a composite operation. This is probably a result of a development
 driven by a very particular use - while c2hs is used its use could be more
 effective.
 -->
-
 <h1 id="license-plate-recognition">License Plate Recognition</h1>
 <p>My pipeline is informed by the papers I perused. Plate Localization uses an otsu threshold, filter blob with high areas, white hat, filter blobs of area outside of a range, dilation, and shape filtering (keep rectangular blobs). Potential plates are then extracted and cleaned by filtering based on the area, width/height relative to near by objects, and number of blobs. Finally, I segment all the blobs (sorted left to right) sending each one individually to GNU optical character recognizer.</p>
 <h2 id="results">Results</h2>
 <p>An example of a successful application starts with a typical image of a car in traffic:</p>
 <div class="figure">
-<img src="../static-images/LPR/success/normal.jpg" alt="Car in traffic" /><p class="caption">Car in traffic</p>
+<img src="../static-images/LPR/success/normal.jpg" alt="Car in traffic" />
+<p class="caption">Car in traffic</p>
 </div>
 <p>We then see how thresholding helps (while assuming the plate is dark numbers on a light background):</p>
 <div class="figure">
-<img src="../static-images/LPR/success/threshold.jpg" alt="Thresholded car" /><p class="caption">Thresholded car</p>
+<img src="../static-images/LPR/success/threshold.jpg" alt="Thresholded car" />
+<p class="caption">Thresholded car</p>
 </div>
 <p>The white top-hat reduces many of the objects to skeletons, breaking some apart so we can consider them as separate blobs. This is important for some images that, when thresholded, connect a letter or two from the plate to the body of the car.</p>
 <div class="figure">
-<img src="../static-images/LPR/success/wth.jpg" alt="White top-hat" /><p class="caption">White top-hat</p>
+<img src="../static-images/LPR/success/wth.jpg" alt="White top-hat" />
+<p class="caption">White top-hat</p>
 </div>
 <p>The size-filter gives us:</p>
 <div class="figure">
-<img src="../static-images/LPR/success/size-filter.jpg" alt="size-filtered" /><p class="caption">size-filtered</p>
+<img src="../static-images/LPR/success/size-filter.jpg" alt="size-filtered" />
+<p class="caption">size-filtered</p>
 </div>
 <p>Now dilation allows us to connect the individual letters into a single blob. The areas that show up as white in the dilated image are checked to see if they contain between 3 and 30 separate blobs (in the thresholded image), if so then I consider this portion of the image as a potential plate.</p>
 <div class="figure">
-<img src="../static-images/LPR/success/dilate.jpg" alt="dilated" /><p class="caption">dilated</p>
+<img src="../static-images/LPR/success/dilate.jpg" alt="dilated" />
+<p class="caption">dilated</p>
 </div>
 <p>With just a little more processing, such as comparing the sizes of the blobs to make sure they are approximately the same height, we end up with two blobs. After cleaning, here they are:</p>
 <p><img src="../static-images/LPR/success/cleanblob.png" alt="dilated" /> <img src="../static-images/LPR/success/cleanblob-wrong.png" alt="dilated" /></p>

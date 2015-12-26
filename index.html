@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>Secure Computation with HELib - The Type-Safe Jabberwolk</title>
+    <title>Applying Cryptol To Tantrix - The Type-Safe Jabberwolk</title>
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssreset/reset-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssbase/base-min.css">
     <link rel="stylesheet" type="text/css" href="http://yui.yahooapis.com/3.2.0/build/cssfonts/fonts-min.css">
@@ -47,7 +47,7 @@ MathJax.Hub.Config(
         <a href="/">The Type-Safe Jabberwolk</a>
       </div>
       <div id="prev-next-links">
-      <a class="prev-link" href="/posts/RNG-Bench.html">older &raquo;</a>
+      <a class="prev-link" href="/posts/BlockCiphersAndRNG.html">older &raquo;</a>
   
       <a class="next-link-subdued">&laquo; newer</a>
   
@@ -60,237 +60,99 @@ MathJax.Hub.Config(
 </div>
 
 <div id="post">
-  <h1>Secure Computation with HELib</h1>
-  <span class="post-created">Posted 13 May 2013 by Thomas M. DuBuisson</span>
-<p>Homomorphic encryption is a hot new area of study and discussion in the world of cryptography. Using homormorphic encryption it is possible to produce ciphertexts on which an arbitrary third party (ex: Amazon) can perform computations despite the encryption. That is to say, if you have a secret (<span class="math">\(pt\)</span>) and homomorphically encrypt it then an operation <span class="math">\(f\)</span> can be performed on the cipher text such that <span class="math">\(decrypt(f(encrypt(pt))) = f(pt)\)</span>.</p>
-<p>This result is truly stunning, but singing the praises, perils, and history of fully, somewhat, semi, or leveled homomorphic encryption is not what this post is about. You can Google for the cool implications but today I'm going to talk about a particular open-source homomorphic encryption library (written in C++) called HELib.</p>
-<h1 id="what-is-helib">What is HELib?</h1>
-<p><a href="https://github.com/shaih/HElib">HELib</a> implements a homormophic encryption scheme. This library is open source on github and, from a popularity perspective, has really taken off for an obscure crypto library - having over 500 watchers.</p>
-<p>Unlike some earlier HE schemes, HELib uses a SIMD-like optimization known as <a href="http://eprint.iacr.org/2011/133">ciphertext packing</a>. As a result, each individual ciphertext element with which you can perform a computation (addition or multiplication) is conceptually a vector of encrypted plaintext integrals. Thus, this scheme is particularly effective with problems that can benefit from some level of parallel computation.</p>
-<h1 id="example-use-of-helib">Example Use of HELib</h1>
-<p>Folks on github have asked Shai to produce a tutorial showing how to take HELib and perform basic computations such as <span class="math">\(2+2\)</span>. As awesome as Shai and Victor are, I don't expect them to find time to fill this request. Hopefully this section of the blog will suffice for most people. This is more of an HELib quick start guide and absolutely not an FHE primer, there is lots of text on FHE but not much on getting started with HELib.</p>
-<p>Lets start with an example that fills two vectors with integrals, encrypts them homomorphically, and performs component-wise addition and multiplication. This process is actually more involved, the real steps we will go through are: declare our parameters (plaintext space, levels, columns, secret key haming weight, security), generate a secret key, obtain an <code>EncryptedArray</code>, which is a class that aids in later computations, encrypt our vectors, perform addition and multiplication, decrypt the results and print.</p>
-<p>Without further ado, lets dive in. NOTE: all this code is based on one of HELibs 'Test_*.cpp' examples.</p>
-<p>First some boiler-plate that is already discussed or self explainitory.</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
-<span class="ot">#include &quot;FHE.h&quot;</span>
-<span class="ot">#include &quot;EncryptedArray.h&quot;</span>
-<span class="ot">#include &lt;NTL/lzz_pXFactoring.h&gt;</span>
-<span class="ot">#include &lt;fstream&gt;</span>
-<span class="ot">#include &lt;sstream&gt;</span>
-<span class="ot">#include &lt;sys/time.h&gt;</span>
+  <h1>Applying Cryptol To Tantrix</h1>
+  <span class="post-created">Posted 25 December 2015 by Thomas M. DuBuisson</span>
+<p>I just noticed <a href="https://twitter.com/ID_AA_Carmack/status/680569924931063808">John Carmack's tweet</a> about solving the <a href="http://www.tantrix.com/english/TantrixPuzzles.html">Tantrix puzzle</a> in Racket. I like solving puzzles with Cryptol and this seemed like a good opportunity for a non-cherry-picked problem.</p>
+<h1 id="cryptol">Cryptol?</h1>
+<p>Cryptol started as a domain specific langauge for cryptography. It has native support for arbitrary bit-width words and a built in bridge to automated SMT solvers. Each word is represented as a bit array which can be trivially permuted, split, joined, and indexed. These days, many people think of Cryptol as a convenient high-level language for running SAT or SMT solvers.</p>
+<h1 id="tantrix">Tantrix?</h1>
+<p>I didn't know what tantrix was, but the above link has a decent explanation. In short, there are ten hexagonal shaped puzzle pieces with 3 different colored lines on each. The task is to make a loop out of a particular color using a particular number of tiles. For example, it should be simple to use three tiles and create a loop for the yellow line.</p>
+<h1 id="solution-strategy">Solution Strategy</h1>
+<p>In contrast with general purpose languages in which you'd probably make an A* or similar search procedure, the solution strategy with Cryptol is almost always to describe the problem and define a boolean test that returns true for a valid solution. After we have a way to recognize the final solution just ask one of the satisfiability solvers to find the assignment that makes this function return true.</p>
+<p>A more subtle contrast illuminates the method along with its relateive strengths and weaknesses. Solutions that use SAT to recognize a valid solution require the developer to make an exhastive set of rules or checks for each necessary condition. Solutions involving construction, testing, and back-tracking search encode some requirements implicitly in the construction and omit some checks in the final valid solution test. As a result, it can be conceptually hard to identify and write all necessary constraints of the solution but the reward is a concice description of valid solutions that is more aminable to later adjustment or application to related problems.</p>
+<h1 id="onward-to-cryptol-and-glory">Onward to Cryptol and Glory</h1>
+<p>We've established that we'll be defining the Tantrix puzzle in Cryptol then using SAT to find the valid solution, so let's get to it. First we need to define the puzzle pieces and some basic operations.</p>
+<p>Since there are only three colors we'll use 2 bits for color:</p>
+<pre><code>type Color = [2]
+type Tile  = [6]Color</code></pre>
+<p>Our puzzle has ten hexagonal tiles. Each Tile has three colored lines connecting two of the sides. Each side has exactly one color. Borrowing significantly from John Carmack's code mentioned in the introduction, our pieces start with the right-most color and go clock-wise from there.</p>
+<pre><code>tiles : [10]Tile
+tiles = [ [r, y, y, b, r, b]
+        , [b, r, r, b, y, y]
+        , [r, r, b, b, y, y]
+        , [b, r, y, b, y, r]
+        , [r, y, y, r, b, b]
+        , [y, b, r, y, r, b]
+        , [r, b, b, y, r, y]
+        , [y, b, b, r, y, r]
+        , [r, b, y, r, y, b]
+        , [b, y, y, r, b, r]
+        ]
+ where (r,b,y) = (red,blue,yellow)
 
-<span class="dt">int</span> main(<span class="dt">int</span> argc, <span class="dt">char</span> **argv)
-{
-    <span class="co">/* On our trusted system we generate a new key</span>
-<span class="co">     * (or read one in) and encrypt the secret data set.</span>
-<span class="co">     */</span>
+red,blue,yellow : Color
+(red,blue,yellow) = (0,1,2)</code></pre>
+<p>Placements, the below <code>Pt</code> type, are a collecttion of a tile, location on the grid, and a rotation.</p>
+<pre><code>type Pos   = ([8],[8])
+type Dir   = [3]
+type Rot   = Dir
+type Pt    = (Pos,Tile,Rot)
 
-    <span class="dt">long</span> m=<span class="dv">0</span>, p=<span class="dv">2</span>, r=<span class="dv">1</span>; <span class="co">// Native plaintext space</span>
-                        <span class="co">// Computations will be &#39;modulo p&#39;</span>
-    <span class="dt">long</span> L=<span class="dv">16</span>;          <span class="co">// Levels</span>
-    <span class="dt">long</span> c=<span class="dv">3</span>;           <span class="co">// Columns in key switching matrix</span>
-    <span class="dt">long</span> w=<span class="dv">64</span>;          <span class="co">// Hamming weight of secret key</span>
-    <span class="dt">long</span> d=<span class="dv">0</span>;
-    <span class="dt">long</span> security = <span class="dv">128</span>;
-    ZZX G;
-    m = FindM(security,L,c,p, d, <span class="dv">0</span>, <span class="dv">0</span>);</code></pre>
-<p>Notice the parameter names are pretty consistent in HELib examples as well as the literature. In this case, I am building for GF(2) - so my homormorphic addition is XOR and multiplication is AND. Changing this is as easy as changing the value of <code>p</code>. Folks wanting to see <code>2+2=4</code> should set p to something that matches their desired domain, such as 257 to obtain 8 bit Ints.</p>
-<p>NOTE: I ran into a bug with <code>p=65537</code> and had to manually set <code>m</code> to an acceptable value, 65539, because <code>FindM()</code> failed.</p>
-<p>Now lets use these parameters to build a private key - HELib is evidently asymmetric in addition to being homomorphic, wow!</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
-    FHEcontext context(m, p, r);
-    <span class="co">// initialize context</span>
-    buildModChain(context, L, c);
-    <span class="co">// modify the context, adding primes to the modulus chain</span>
-    FHESecKey secretKey(context);
-    <span class="co">// construct a secret key structure</span>
-    <span class="dt">const</span> FHEPubKey&amp; publicKey = secretKey;
-    <span class="co">// an &quot;upcast&quot;: FHESecKey is a subclass of FHEPubKey</span>
+// Completed boards are n placements
+type Board n = [n]Pt</code></pre>
+<p>We can now add some simple helper functions to obtain the neighbor positions, test for neighbors, and get the color of a particular placed piece at a particular point (0 is right, working clockwise).</p>
+<pre><code>directions : [6]Dir
+directions = [0..5]
 
-    <span class="co">//if(0 == d)</span>
-    G = context.alMod.getFactorsOverZZ()[<span class="dv">0</span>];
+neighbor : Pos -&gt; Dir -&gt; Pos
+neighbor (x,y) dir = ns @ dir
+ where
+ ns = [ (x+1, y  )
+      , (x+1, y-1)
+      , (x,   y-1)
+      , (x-1, y  )
+      , (x-1, y+1)
+      , (x,   y+1)
+      ]
 
-   secretKey.GenSecKey(w);
-   <span class="co">// actually generate a secret key with Hamming weight w</span>
+isAdjacent : Pos -&gt; Pos -&gt; Bit
+isAdjacent p0 p1 = or [neighbor p0 d == p1 | d &lt;- directions] &amp;&amp; noOverflow
+ where
+ noOverflow = and [~zero != v | v &lt;- [p0.0,p0.1,p1.0,p1.1] ]
 
-   addSome1DMatrices(secretKey);
-   cout &lt;&lt; <span class="st">&quot;Generated key&quot;</span> &lt;&lt; endl;</code></pre>
-<p>We have now generated a secret key. Notice the public key was extracted from the private key - this is C++, that isn't just an alias. Interestingly, a public key in this context need only be an encryption of &quot;1&quot;.</p>
-<p>Lets get our helper class instantiated:</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
-   EncryptedArray ea(context, G);
-   <span class="co">// constuct an Encrypted array object ea that is</span>
-   <span class="co">// associated with the given context and the polynomial G</span>
-
-   <span class="dt">long</span> nslots = ea.size();</code></pre>
-<p>I find having an <code>nslots</code> value around is useful. You can't pick the number of slots (plaintext elements) a ciphertext can hold, but you can learn what parameters control this value and try to optimize for your situation. Now for encryption.</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">
-   vector&lt;<span class="dt">long</span>&gt; v1;
-   <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span> ; i &lt; nslots; i++) {
-       v1.push_back(i*<span class="dv">2</span>);
-   }
-   Ctxt ct1(publicKey);
-   ea.encrypt(ct1, publicKey, v1);
-    
-   vector&lt;<span class="dt">long</span>&gt; v2;
-   Ctxt ct2(publicKey);
-   <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span> ; i &lt; nslots; i++) {
-       v2.push_back(i*<span class="dv">3</span>);
-   }
-   ea.encrypt(ct2, publicKey, v2);</code></pre>
-<p>Well that was just some verbose C++ with calls to <code>EncryptedArray::encrypt()</code> hidden within. Hopefully by this point the notion has sunk in that we are talking about a whole vector of plaintext values (<code>v1</code>, <code>v2</code>) that are placed into individual ciphertexts (<code>ct1</code>, <code>ct2</code>).</p>
-<p>Lets see some SIMD style computation!</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">   <span class="co">// On the public (untrusted) system we</span>
-   <span class="co">// can now perform our computation</span>
-
-   Ctxt ctSum = ct1;
-   Ctxt ctProd = ct1;
-
-   ctSum += ct2;
-   ctProd *= ct2;</code></pre>
-<p>Well damn, that was anti-climactic. When you think about it, it should be almost disappointingly easy if this library is as awesome as I hope I hyped you up to expect.</p>
-<p>Finally, we will decrypt the sum and product results:</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">    vector&lt;<span class="dt">long</span>&gt; res;
-    ea.decrypt(ctSum, secretKey, res);
-
-    cout &lt;&lt; <span class="st">&quot;All computations are modulo &quot;</span> &lt;&lt; p &lt;&lt; <span class="st">&quot;.&quot;</span> &lt;&lt; endl;
-    <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span>; i &lt; res.size(); i ++) {
-        cout &lt;&lt; v1[i] &lt;&lt; <span class="st">&quot; + &quot;</span> &lt;&lt; v2[i] &lt;&lt; <span class="st">&quot; = &quot;</span> &lt;&lt; res[i] &lt;&lt; endl;
-    }
-
-    ea.decrypt(ctProd, secretKey, res);
-    <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">0</span>; i &lt; res.size(); i ++) {
-        cout &lt;&lt; v1[i] &lt;&lt; <span class="st">&quot; * &quot;</span> &lt;&lt; v2[i] &lt;&lt; <span class="st">&quot; = &quot;</span> &lt;&lt; res[i] &lt;&lt; endl;
-    }
-
-    <span class="kw">return</span> <span class="dv">0</span>;
-}</code></pre>
-<p>And that's it - under one hundred lines and you have a program that can add, multiply, subtract, and negate (see the header files) data without even knowing the values.</p>
-<h1 id="performance">Performance</h1>
-<p>The performance of addition and multiplication varies by level, security, and plaintext characteristics (ex: word size). For the example, I get timings of:</p>
-<table>
- <tr>
-  <td>
-Modulus
-</td>  <td>
-Number of Slots
-</td>  <td>
-Time for addition (ms)
-</td> <td>
-Time for multiplication (ms)
-</td>
- </tr>
- <tr>
-    <td>
-257
-</td>
-    <td>
-44
-</td>
-    <td>
-0.7
-</td>
-    <td>
-39
-</td>
-  </tr>
-  <tr>
-    <td>
-8209
-</td>
-    <td>
-22
-</td>
-    <td>
-0.7
-</td>
-    <td>
-38
-</td>
-  </tr>
-
-
-<tr>
-    <td>
-65537
-</td>
-    <td>
-2
-</td>
-    <td>
-2.9
-</td>
-    <td>
-177
-</td>
-  </tr>
-</table>
-
-<p>It is worth once-again pointing out that this is running on top of NTL, which isn't thread safe. While you get some &quot;parallelism&quot; from the ciphertext packing you can't take easy advantage of multiple cores without multiple processes.</p>
-<h1 id="noise-in-the-ciphertext">Noise in the CipherText</h1>
-<p>Each operation, but most notably multiply, results in a ciphertext that is more &quot;noisy&quot; than its inputs. Too much noise and your decryption will fail (producing results that don't match your intended computation). Thus, FHE computations have a notion of depth much like a circuit depth. If you exceed a given depth then the noise inherent to the computation will become great enough that decryption can result in errors. The trick is to know your current depth, for any given ciphertext, and perform a <code>recrypt</code> operation that produces a ciphertext of identical meaning but with reduced noise. However, recrypt is computationally expensive so performing it only when needed is critical.</p>
-<p>One way to reduce the number of recrypt operations is to increase the &quot;levels&quot; parameter (<code>L</code> in the above example). There is a trade-off with the depth and how often you recrypt - computing over ciphertexts that support more levels is itself more computationally expensive.</p>
-<p>HELib doesn't currently support a recrypt operation, so you are simply not able to perform computations of significant depth - saving you from the misery of determining a good balance between levels and recryption. This does, however, make noise management critical as you simply are not able to perform computations that require significant depth.</p>
-<h1 id="noise-management">Noise Management</h1>
-<p>I just told you that FHE operations produce ciphertexts that build up noise and this noise prevents decryption. Furthermore, in HELib (as it stands today) this causes a limit to the depth of the computations you can practically perform. As a result, you, the programmer, must be intelligent with respect to your algorithms and how they combine ciphertexts.</p>
-<p>For example, if you wish to acquire the product of an array of ciphertexts (which are themselves arrays of slots) you could perform what is known in functional programming as a fold - a for loop taking a zero element and adding each element in the array. An implementation can be seen below, this is horrible as it causes <span class="math">\(O(n)\)</span> noise, where <span class="math">\(n\)</span> is the length of the array.</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">    <span class="dt">int</span> mulEntireArray( Ctxt &amp;res
-                      , <span class="dt">const</span> vector&lt;Ctxt&gt; input
-                      , <span class="dt">const</span> EncryptedArray &amp;ea)
-    {
-        <span class="dt">const</span> <span class="dt">int</span> nrElem  = input.size();
-        <span class="kw">if</span>(nrElem &gt; <span class="dv">0</span>) {
-            res = input[<span class="dv">0</span>];
-            <span class="kw">for</span>(<span class="dt">int</span> i = <span class="dv">1</span>; i &lt; nrElem; i++) {
-                res.multiplyBy(input[i]);
-            }
-            <span class="kw">return</span> <span class="dv">0</span>;
-        }
-        <span class="kw">return</span> (-<span class="dv">1</span>);
-    }</code></pre>
-<p>Instead you should use a divide and conquer algorithm, cutting the array in half in each iteration and multiply the two haves, terminating with an array of length one. This results in <span class="math">\(O(lg(n))\)</span> noise. Below is a display version that uses tail calls, likely not using memory in anything approaching a wise manner in C++ but it makes for easy reading.</p>
-<pre class="sourceCode c prettyprint" id="mycode"><code class="sourceCode c">    <span class="dt">int</span> mulEntireArray_logNoise( Ctxt &amp;res
-                               , <span class="dt">const</span> vector&lt;Ctxt&gt; input
-                               , <span class="dt">const</span> EncryptedArray &amp;ea)
-    {
-        <span class="dt">const</span> size_t nrElem  = input.size();
-        <span class="kw">if</span>(nrElem &gt; <span class="dv">1</span>) {
-            vector&lt;Ctxt&gt; tmp( (nrElem<span class="dv">+1</span>)/<span class="dv">2</span>
-                            , Ctxt(input[<span class="dv">0</span>].getPubKey()));
-            <span class="dt">const</span> size_t sz = tmp.size();
-            <span class="kw">for</span>(<span class="dt">int</span> i=<span class="dv">0</span> ; i &lt; sz; i++) {
-                tmp[i] = input[i];
-            }
-            <span class="kw">for</span>(<span class="dt">int</span> i=<span class="dv">0</span> ; i &lt; sz &amp;&amp; (sz + i) &lt; nrElem; i++) {
-                tmp[i].multiplyBy(input[sz + i]);
-            }
-            mulEntireArray_logNoise(res, tmp, ea);
-        }
-        <span class="kw">else</span>
-            res = input[<span class="dv">0</span>];
-        <span class="kw">return</span> <span class="dv">0</span>;
-    }</code></pre>
-<p>The important part of the above is that <code>tmp</code> copies the first half of input and multiplies by the second half, terminating when it has a one element vector.</p>
-<h1 id="minor-details-building-and-the-like">Minor Details: Building and the Like</h1>
-<p>HELib currently exists only as a git repository, there is no distribution package or Windows installer. What's more, it depends on a new version of NTL (6.0) that is not packaged by many distributions. To get going, you are going to need to download and install NTL, git clone HELib, build HELib remembering to link it against the new NTL and then build your application.</p>
-<p>For *nix users, the NTL portion should be as simple as:</p>
-<pre id="mycode" class="sh prettyprint"><code>    wget http://www.shoup.net/ntl/ntl-6.0.0.tar.gz
-    tar xzf ntl-6.0.0.tar.gz
-    cd ntl-6.0.0
-    ./configure &amp;&amp; make &amp;&amp; sudo make install # or something like this</code></pre>
-<p>Then to get and build HELib:</p>
-<pre id="mycode" class="sh prettyprint"><code>    git clone git://github.com/shaih/HElib.git
-    cd HElib/src
-    # Edit the Makefile as needed
-    # It already had the correct -I and -L paths for me
-    make</code></pre>
-<p>Now you can write your application and compile it via:</p>
-<pre id="mycode" class="sh prettyprint"><code>    g++ App.cpp $HELib/src/fhe.a -I$HELib/src -o App \
-                                 -L/usr/local/lib -lntl</code></pre>
-<h1 id="future">Future</h1>
-<p>HELib is a young library in a rather young field of cryptography. It blows my mind that the library is so well formed at this point. Hopefully we will see serious contributors and an active community.</p>
-<p>If anyone is interested in either making Haskell bindings or porting it to using something thread safe (not NTL) then I'd be interested and would likely contribute, so get in touch.</p>
+dirColor : Dir -&gt; Pt -&gt; Color
+dirColor dir (_l, tile, rot) = tile @ ((extend dir + extend rot : [4]) % 6)</code></pre>
+<p>We've ran across our first gotchas! A first we might check adjacency and calculate dirColor through simple arithmetic such as <code>a.x == b.x + 1</code> but that doesn't account for overflow. Without these checks SAT will result in more interesting solutions than most people like. In the case of adjacency we cheat by not allowing the maximum index and use an excessively large grid.</p>
+<p>Now that we have the structure, the solution starts to deviate from what Carmack pasted. What's left for us is not a construction of lines and tree search but &quot;merely&quot; describing a valid board. Valid boards for a given color have to 1. Have only valid placements 2. Use each tile only once 3. No tiles overlap 4. when considering the line it must form a loop. Let's focus on the first three and break 4 down in a minute.</p>
+<p>Step 1: Validating placments is a check that the tile from the original game - the <code>tiles</code> array.</p>
+<p>Steps 2 and 3: Uniqueness testing of the tiles, their positions or anything else can be done in a few ways. Conceptually we can just test each element for equality with all elements in the set and ensure only one was equal (e.g. to itself). While this appears inefficient two things to remember are that this toy problem is small and there is an army of optimizations just under the surface. We do have to pay the cost of synactically reforming the problem but many duplicated and excess terms will be handled by the solver.</p>
+<p>We also require the board include origin. Requiring origin is without loss of generality (I think) because the whole board can be rotated till a tile fits in the origin's corner, but I have not proven this to be the case.</p>
+<pre><code>validSolution : {n} (n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
+validSolution c brd = hasOrigin &amp;&amp; validTileSet brd &amp;&amp; uniquePositions brd &amp;&amp; boardIsLoop c brd
+ where
+ validTileSet bs = unique &amp;&amp; fromBag
+     where unique  = and [ uniquely (\x -&gt; x.1 == b.1) bs | b &lt;- bs ]
+           fromBag = and [ elem b.1 tiles | b &lt;- bs ]
+ uniquePositions bs = and [uniquely (\x -&gt; x.0 == b.0) bs | b &lt;- bs]
+ hasOrigin = or [b.0 == zero | b &lt;- brd]</code></pre>
+<p>The simplest method I found for loop checking breaks the problem down in three ways 1. Ensure the board ordered such that each tile adjacent in the array is conceptually adjacent on the board 2. Walking the path forward from the current tile, the direction the next neighbor is in includes the color of interest 3. Walking the path backward from the current tile, the direction of the neighbor is also the direction of the color of interst.</p>
+<p>All three of these requirements can be expressed by the same path traversal that takes a predicate. Make sure the last tile matches up to the first so we have a loop instead of an uninterrupted line - I handled this with an excessive, but sufficient, extra lap around the loop.</p>
+<pre><code>boardIsLoop : {n} (fin n, n &gt;= 3, n &lt;= 10) =&gt; Color -&gt; Board n -&gt; Bit
+boardIsLoop c bs = forPath adjacentPl bs &amp;&amp; forPath colorsMatch bs &amp;&amp; forPath colorsMatch (reverse bs)
+ where
+  forPath pred xs = and [pred b0 b1 | b0 &lt;- (xs # xs) | b1 &lt;- drop `{1} (xs # xs) ]
+  adjacentPl  a b = isAdjacent a.0 b.0
+  colorsMatch a b = and [b.0 == neighbor a.0 d ==&gt; dirColor d a == c | d &lt;- directions]</code></pre>
+<p>And that's the entirety of the solution. We can get a little prettier (and smaller) by 1. Pushing lots of the helper functions into Cryptol and 2. Defining a pretty printing function. Item 1 is done - pull request 299 on github. Item 2 is small unless you want something graphical or colored text, which Cryptol as a DSL can not do. My pretty printer performs the rotations and presents the color values in a normalized form:</p>
+<pre><code>pretty : {n} (fin n) =&gt; Board n -&gt; [n](Pos, [6]Color)
+pretty bs = [ (b.0, b.1 &lt;&lt;&lt; b.2) | b &lt;- bs ]</code></pre>
+<p>Now we can run code to obtain solutions:</p>
+<pre><code>:sat (validSolution `{3} yellow)
+pretty (it.arg1)
+[((0x00, 0x01), [0x0, 0x2, 0x2, 0x1, 0x0, 0x1]),
+((0x00, 0x00), [0x2, 0x0, 0x1, 0x1, 0x0, 0x2]),
+((0x01, 0x00), [0x0, 0x0, 0x1, 0x2, 0x2, 0x1])]</code></pre>
+<p>Solving all 10 versions of the problem takes a heart-beat. Not surprising, but fun and educational for the kids at Christmas.</p>
 </div>
       <div id="footer">
         Copyright &copy; 2013 Thomas M. DuBuisson

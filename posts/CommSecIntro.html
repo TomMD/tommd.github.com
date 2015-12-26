@@ -67,85 +67,81 @@ MathJax.Hub.Config(
 <p>For these reasons I have created the <a href="http://hackage.haskell.org/package/commsec">commsec</a> and <a href="http://hackage.haskell.org/package/commsec-keyexchange">commsec-keyexchange</a> packages that allow for authenticated, integrity and confidentiallity protected, communications.</p>
 <h1 id="guts-of-the-library">Guts of the Library</h1>
 <h2 id="commsec">CommSec</h2>
-<p>The CommSec library sends and receives information in datagrams much like how IPSec ESP works. Each plaintext sending is transmitted as <span class="math">\([ LEN | IV | CT | TAG ]\)</span> where LEN is a 4 byte length encoding of the message size (not including itself), IV is the 8 byte counter, CT is the AES GCM encryption of the plaintext under said counter, and TAG is the GCM authentication tag.</p>
+<p>The CommSec library sends and receives information in datagrams much like how IPSec ESP works. Each plaintext sending is transmitted as <span class="math inline">\([ LEN | IV | CT | TAG ]\)</span> where LEN is a 4 byte length encoding of the message size (not including itself), IV is the 8 byte counter, CT is the AES GCM encryption of the plaintext under said counter, and TAG is the GCM authentication tag.</p>
 <h2 id="commsec-key-exchange">CommSec Key Exchange</h2>
-<p>The key exchange is based on the RSA-authenticated station to station protocol. This is just an authenticated DH scheme: each side generates <span class="math">\(x (\bmod p)\)</span> and <span class="math">\(y(\bmod p)\)</span>, where <span class="math">\(p\)</span> is a public large prime. They compute and share <span class="math">\(a^x\)</span> and <span class="math">\(a^y\)</span>, where <span class="math">\(a\)</span> is a generator. We then have shared secret <span class="math">\(a^{xy}\)</span> by computing <span class="math">\((a^x)^y\)</span> or <span class="math">\((a^y)^x\)</span>. The result is then verified using an RSA signature, transferring <span class="math">\(\text{AES-CTR}(RSA(a^x, a^y))\)</span> where the AES key is derived from the newly shared secret and each party uses their own private key for signing.</p>
+<p>The key exchange is based on the RSA-authenticated station to station protocol. This is just an authenticated DH scheme: each side generates <span class="math inline">\(x (\bmod p)\)</span> and <span class="math inline">\(y(\bmod p)\)</span>, where <span class="math inline">\(p\)</span> is a public large prime. They compute and share <span class="math inline">\(a^x\)</span> and <span class="math inline">\(a^y\)</span>, where <span class="math inline">\(a\)</span> is a generator. We then have shared secret <span class="math inline">\(a^{xy}\)</span> by computing <span class="math inline">\((a^x)^y\)</span> or <span class="math inline">\((a^y)^x\)</span>. The result is then verified using an RSA signature, transferring <span class="math inline">\(\text{AES-CTR}(RSA(a^x, a^y))\)</span> where the AES key is derived from the newly shared secret and each party uses their own private key for signing.</p>
 <h1 id="use">Use</h1>
 <p>You first need to generate RSA keys and share the public key between your communicating systems:</p>
 <pre id="snip1" class="sh prettyprint"><code>    $ ssh-keygen
     ...enter a path...</code></pre>
 <p>After that you can using commsec-keyexchange to perform an authenticated key exchange and send/recv data.</p>
-<pre class="sourceCode haskell prettyprint"><code class="sourceCode haskell">    <span class="kw">import</span> Crypto.PubKey.OpenSsh
-    <span class="kw">import</span> <span class="kw">qualified</span> Data.ByteString <span class="kw">as</span> B
-    <span class="kw">import</span> Network.CommSec.KeyExchange
+<pre class="haskell prettyprint"><code>    import Crypto.PubKey.OpenSsh
+    import qualified Data.ByteString as B
+    import Network.CommSec.KeyExchange
     
-    main <span class="fu">=</span> <span class="kw">do</span>
-        <span class="co">-- Step 1: (not shown) Get file paths, host, and port.</span>
-        <span class="co">-- Step 2: Read in the keys</span>
-        <span class="kw">let</span> dec d f <span class="fu">=</span> ether <span class="fu">error</span> <span class="fu">id</span> <span class="fu">.</span> d <span class="ot">`fmap`</span> B.readFile f
-        <span class="dt">OpenSshPrivateKeyRsa</span> priv  <span class="ot">&lt;-</span> dec decodePrivate myPrivateKeyFile
-        <span class="dt">OpenSshPublicKeyRsa</span> them _ <span class="ot">&lt;-</span> dec decodePublic theirPublicKeyFile</code></pre>
+    main = do
+        -- Step 1: (not shown) Get file paths, host, and port.
+        -- Step 2: Read in the keys
+        let dec d f = ether error id . d `fmap` B.readFile f
+        OpenSshPrivateKeyRsa priv  &lt;- dec decodePrivate myPrivateKeyFile
+        OpenSshPublicKeyRsa them _ &lt;- dec decodePublic theirPublicKeyFile</code></pre>
 <p>The first thing we do is obtain the RSA keys - our private key and their public key.</p>
-<pre class="sourceCode haskell prettyprint" id="step3"><code class="sourceCode haskell">        <span class="co">-- Step 3: Listen for and accept a connection</span>
-        <span class="co">--         (alternatively: connect to a listener).</span>
-        ctx <span class="ot">&lt;-</span> <span class="kw">if</span> doAccept
-                <span class="kw">then</span> accept host port them priv
-                <span class="kw">else</span> connect host port them priv</code></pre>
+<pre id="step3" class="haskell prettyprint"><code>        -- Step 3: Listen for and accept a connection
+        --         (alternatively: connect to a listener).
+        ctx &lt;- if doAccept
+                then accept host port them priv
+                else connect host port them priv</code></pre>
 <p>After that we can perform a key exchange, which allows establishes a socket and shared key.</p>
-<pre class="sourceCode haskell prettyprint" id="step4"><code class="sourceCode haskell">        <span class="co">-- Step 4: Use the communication contexts along with</span>
-        <span class="co">-- the send and recv primitives to communicate.</span>
-        send ctx <span class="st">&quot;Hello!&quot;</span>
-        recv ctx <span class="fu">&gt;&gt;=</span> <span class="fu">print</span></code></pre>
+<pre id="step4" class="haskell prettyprint"><code>        -- Step 4: Use the communication contexts along with
+        -- the send and recv primitives to communicate.
+        send ctx &quot;Hello!&quot;
+        recv ctx &gt;&gt;= print</code></pre>
 <h1 id="performance-comparison">Performance Comparison</h1>
 <p>I benchmarked commsec to compare with the package I am replacing, secure-sockets:</p>
 <table>
-  <tr>
-  <td>
+<tr>
+<td>
 Package (sending+recv)
-</td>         <td>
-Size (Bytes)
-</td>     <td>
-Time (us)
 </td>
-  </tr>
-  <tr>
-  <td>
+<pre><code>     &lt;td&gt;Size (Bytes)&lt;/td&gt;     &lt;td&gt;Time (us)&lt;/td&gt;</code></pre>
+</tr>
+<tr>
+<td>
 CommSec
-</td>   <td>
-16
-</td>         <td>
-10
 </td>
-  </tr>
-  <tr>
-  <td>
+<td>
+16
+</td>
+<pre><code>     &lt;td&gt;10&lt;/td&gt;</code></pre>
+</tr>
+<tr>
+<td>
 CommSec
-</td>   <td>
-2048
-</td>         <td>
-76
 </td>
-  </tr>
-  <tr>
-  <td>
+<td>
+2048
+</td>
+<pre><code>     &lt;td&gt;76&lt;/td&gt;</code></pre>
+</tr>
+<tr>
+<td>
 secure-sockets package
-</td> <td>
+</td>
+<td>
 16
-</td>         <td>
-29
 </td>
-  </tr>
-  <tr>
-  <td>
+<pre><code>     &lt;td&gt;29&lt;/td&gt;</code></pre>
+</tr>
+<tr>
+<td>
 secure-sockets package
-</td> <td>
-2048
-</td>         <td>
-40
 </td>
-  </tr>
+<td>
+2048
+</td>
+<pre><code>     &lt;td&gt;40&lt;/td&gt;</code></pre>
+</tr>
 </table>
-
 <p>These results aren't surprising. The design of commsec means it probably has lower overhead costs, but the GCM routines aren't as well optimized. This means that commsec will be faster on the small packets while secure-sockets is faster on larger messages (until I switch to a faster AES routine or someone optimizes the current one).</p>
 <h1 id="end-notes">End Notes</h1>
 <p>These libraries come with very strong warning: there is no guarentee of correctness. These libraries were not developed with any rigor or peer review!</p>

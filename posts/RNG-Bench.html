@@ -68,7 +68,7 @@ MathJax.Hub.Config(
 <ul>
 <li><p>Determinism: Most RNGs are pseudo-random - the output is based entirely on their initial seed. This is a useful feature as it allows separate entities to obtain the same random stream without significant communication.</p></li>
 <li><p>Backtracking Resistance: compromise of a future generator does not yield the adversary any ability to compute previous random values.</p></li>
-<li><p>Prediction Resistance: even if the adversary have obtained one state of the RNG they might not be able to predict the future output because the generator can continually incorporate entropy from outside sources.</p></li>
+<li><p>Prediction Resistance: even if the adversary has obtained one state of the RNG they might not be able to predict the future output because the generator can continually incorporate entropy from outside sources.</p></li>
 </ul>
 <p>Fortunately, the world is large and, even in a language that fancies itself a niche, there are options. There are at least four packages on Hackage that are worth trying and the generators available in these packages fit into three catagories:</p>
 <ul>
@@ -77,7 +77,7 @@ MathJax.Hub.Config(
 <li><a href="http://hackage.haskell.org/package/intel-aes">intel-aes</a></li>
 <li><a href="http://hackage.haskell.org/package/cprng-aes">cprng-aes</a></li>
 </ul></li>
-<li>NIST Standards Based
+<li>NIST Standards Based (HMAC, hash, and cipher-based generators)
 <ul>
 <li><a href="http://hackage.haskell.org/package/DRBG">DRBG</a></li>
 </ul></li>
@@ -89,7 +89,8 @@ MathJax.Hub.Config(
 <h2 id="intel-aes">Intel-AES</h2>
 <p>Based on Intel's AES-NI example code, this package is a fast AES in counter mode. There is no backtracking resistance. It also doesn't currently build due to recent changes to crypto-api, but feel free to try my fixed up <a href="https://github.com/TomMD/intel-aes">git repository</a>.</p>
 <h2 id="cprng-aes">CPRNG-AES</h2>
-<p>This is also an AES without backtracking resistance. Oddly, this is not AES in counter mode, it XORs a counter with the previously returned random bytes to obtain the IV - the reason for this design choice is unknown. CPRNG-AES is more popular than intel-aes, probably due to its cleaner build system.</p>
+<p>This is also an AES without backtracking resistance. Oddly, this is not AES in counter mode, it XORs a counter with the previously returned random bytes to obtain the IV. This isn't the only oddity either; for all practical purposes there isn't any reseeding happening inside of CPRNG-AES, nor are there explicit notifications when reseeding is needed. The reason for these deviations from accepted practice is unknown.</p>
+<p>CPRNG-AES is more popular than intel-aes, probably due to its cleaner build system and early arrival on Hackage.</p>
 <h2 id="deterministic-random-bit-generator-drbg">Deterministic Random Bit Generator (DRBG)</h2>
 <p>DRBG is a collection of generators and modifiers. These generators are all naive English-to-Haskell translations of NIST SP 800-90. Included are Hash-based, HMAC-based, and a counter based generators. These generators are all backtracking resistant and allow additional input to be provided for prediction resistance. Modifiers take as input one or more generators and produce a new generator; the modifiers include automatically reseeding one generator with another, buffering generators, and XORing the output of two generators. The modifiers are all custom solutions, but the underlying generators successfully complete the NIST Known Answer Tests.</p>
 <h2 id="crypto-api-and-entropy">Crypto-API and Entropy</h2>
@@ -98,7 +99,7 @@ MathJax.Hub.Config(
 <p>Since all of these generators can be incorporated into a project with near-identical ease, and most users aren't concerned with adherence to standards or other quasi-security arguments, the main difference remaining is performance. I've benchmarked six generators over a range of data-request sizes. The results will hopefully educate potential users about their choices as well as motivate continued development.</p>
 <p>I'll present the mean values in the graph. This is slightly misleading as some generators, such as the buffered generators, have very odd densities, so take your grain of salt.</p>
 <p>(all benchmarks are on an 3.1GhZ laptop with AES-NI and RDRAND)</p>
-<p><img src="/generated-images/tikz-1e956f93bad90b87e96322da923c4cc9a304b492.png" class=""></p>
+<p><img src="/generated-images/tikz-1e956f93bad90b87e96322da923c4cc9a304b492.png" width="293" height="227" class=""></p>
 <p>Looking these numbers I have the following observations:</p>
 <ul>
 <li><p>It appears CPRNG performs buffering - news to me.</p></li>
@@ -107,9 +108,10 @@ MathJax.Hub.Config(
 <li><p>RDRAND, via SystemRandom, is far and away the best performing generator (assuming your system supports the instruction).</p></li>
 </ul>
 <p>I re-ran the benchmarks, stepping the buffering generators one byte first. This means they get the advantage of precomputing an arbitrary number of bytes up front and just taking bytes off a bytestring to serve requests. The purpuse here is just to confirm we are talking about mere nanoseconds unless the generators need to compute more random data for the buffer.</p>
-<p><img src="/generated-images/tikz-fe285d904737f33eff98b7bb2058e57f0cf8198f.png" class=""></p>
+<p><img src="/generated-images/tikz-fe285d904737f33eff98b7bb2058e57f0cf8198f.png" width="198" height="179" class=""></p>
 <h1 id="conclusion">Conclusion</h1>
-<p>I have high respect for all of these packages. They've all shown reasonable performance and include simple APIs (via the <code>RandomAPI</code> and <code>CryptoRandomGen</code> classes). Unless you need top-notch performance (in which case, use <code>SystemRandom</code> or <code>Intel-AES</code>), you'll probably be well served by selecting a package based on features, portability, and preferred API.</p>
+<p>All of these packages have shown reasonable performance and include simple APIs (via the <code>RandomAPI</code> and <code>CryptoRandomGen</code> classes). The one hitch that bothers me with any of them is a lack of reseeding in the <code>RandomAPI</code> and CPRNG-AES.</p>
+<p>Unless you need top-notch performance (in which case, use <code>SystemRandom</code> or <code>Intel-AES</code>), you'll probably be well served by selecting a package based on features and portability.</p>
 </div>
       <div id="footer">
         Copyright &copy; 2013 Thomas M. DuBuisson
